@@ -37,7 +37,7 @@ public class PointServiceImpl implements PointService {
     }
 
     @Override
-    public synchronized UserPoint chargePoint(long id, long amount) {
+    public UserPoint chargePoint(long id, long amount) {
         // 포인트 충전 로직
         UserPoint currentPoint = userPointRepository.selectById(id);
         long updatedPoint = currentPoint.point() + amount;
@@ -47,7 +47,7 @@ public class PointServiceImpl implements PointService {
     }
 
     @Override
-    public synchronized UserPoint usePoint(long id, long amount) {
+    public UserPoint usePoint(long id, long amount) {
         // 포인트 사용 로직
         UserPoint currentPoint = userPointRepository.selectById(id);
         if (currentPoint.point() < amount) {

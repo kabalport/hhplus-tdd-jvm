@@ -155,58 +155,46 @@ class PointServiceMockTest {
     @Test
     @DisplayName("동시에 여러 요청을 보내 포인트 충전 시 레이스 컨디션 발생 테스트")
     void testRaceConditionOnChargePoint() throws InterruptedException {
-        // 사용자 ID와 초기 포인트 설정
+        // 초기 설정
         long userId = 1L;
-        long initialPoint = 0L;
-        // 100 개의 동시 요청을 설정
-        final int numberOfThreads = 100;
-        // 모든 스레드가 작업을 완료할 때까지 기다리기 위한 CountDownLatch 생성
+        UserPoint initialUserPoint = new UserPoint(userId, 0L, System.currentTimeMillis());
+        Mockito.when(userPointRepository.selectById(userId)).thenReturn(initialUserPoint);
+
+        final int numberOfThreads = 1000;
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
-        // ExecutorService를 사용해 스레드 풀 설정. 스레드 개수는 요청 수에 맞춰 설정
         ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
 
-        // 초기 사용자 포인트 설정
-        UserPoint initialUserPoint = new UserPoint(userId, initialPoint, System.currentTimeMillis());
-        when(userPointRepository.selectById(userId)).thenReturn(initialUserPoint);
-
-        // 포인트 충전 작업을 동시에 수행
+        // 포인트 충전 작업 수행
         for (int i = 0; i < numberOfThreads; i++) {
             executorService.submit(() -> {
                 try {
-                    pointService.chargePoint(userId, 1L); // 각 요청은 1포인트씩 충전
+                    pointService.chargePoint(userId, 1L);
                 } finally {
                     latch.countDown();
                 }
             });
         }
 
-        // 모든 스레드의 작업이 끝날 때까지 대기
         latch.await();
-        // ExecutorService 종료
         executorService.shutdown();
 
-        // 최종 포인트를 조회하여 예상한 결과와 일치하는지 검증
-        ArgumentCaptor<Long> idCaptor = ArgumentCaptor.forClass(Long.class);
+        // insertOrUpdate 메서드 호출을 캡처하기 위한 ArgumentCaptor
+        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<Long> amountCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(userPointRepository, atLeastOnce()).insertOrUpdate(userIdCaptor.capture(), amountCaptor.capture());
 
-        verify(userPointRepository, atLeastOnce()).insertOrUpdate(idCaptor.capture(), amountCaptor.capture());
-
-        // idCaptor와 amountCaptor로부터 캡처된 값을 사용하여 검증 로직을 구현
-        // 이 경우, amountCaptor.getAllValues()를 사용하여 모든 충전 요청을 통해 증가된 총 포인트를 계산할 수 있습니다.
+        // 모든 호출을 통해 증가된 포인트의 총합 계산
         long totalIncreasedAmount = amountCaptor.getAllValues().stream().mapToLong(Long::longValue).sum();
 
-        // 충전 후 예상되는 포인트 계산 (초기 포인트 + 1000번의 1포인트 충전)
-        long expectedFinalPoint = initialPoint + numberOfThreads;
+        System.out.println("===");
+        System.out.println(totalIncreasedAmount);
+        System.out.println("===");
+        System.out.println(1000L);
+        System.out.println("===");
 
-        // 실제 결과와 예상 결과를 비교
-        // 여기서는 최종 결과를 직접 조회하는 로직이 필요합니다. 예를 들어, userPointRepository의 다른 메소드를 사용하여 최종 포인트를 조회할 수 있습니다.
-        // 예상한 포인트와 실제 포인트가 일치하지 않는 경우, 레이스 컨디션이 발생했을 가능성을 나타냅니다.
-        long actualFinalPoint = initialPoint + totalIncreasedAmount; // 예제에서는 이렇게 계산할 수 있습니다.
-        assertEquals(expectedFinalPoint, actualFinalPoint, "동시성 문제로 인해 예상한 포인트와 실제 포인트가 다릅니다.");
+        // 예상 값 검증
+        assertEquals(1000L, totalIncreasedAmount, "동시에 여러 요청을 처리했을 때 총 포인트 증가량이 예상과 다릅니다.");
     }
-
-
-
 
 
 }
