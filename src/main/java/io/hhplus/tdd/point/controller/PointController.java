@@ -34,7 +34,7 @@ public class PointController {
             @PathVariable long id
     ) {
         UserPoint userPoint = pointService.getPointById(id);
-
+        log.info("남은 포인트는 {}",userPoint.point());
         return new UserPointResponse(userPoint.id(), userPoint.point());
     }
 
@@ -46,7 +46,7 @@ public class PointController {
             @PathVariable long id
     ) {
         List<PointHistory> historyList = pointService.getHistoriesByUserId(id);
-
+        log.info(historyList+"");
         return historyList;
     }
 
@@ -58,7 +58,7 @@ public class PointController {
             @PathVariable long id,
             @RequestBody ChargePointRequest request
     ) {
-        UserPoint updatedUserPoint = pointService.chargePoint(id, request);
+        UserPoint updatedUserPoint = pointService.chargePoint(id, request.getAmount());
         log.info("{}포인트 충전, 충전아이디 {}", request.getAmount(), id);
 
         return new UserPointResponse(updatedUserPoint.id(), updatedUserPoint.point());
@@ -71,6 +71,7 @@ public class PointController {
     public UserPointResponse use(
             @PathVariable long id, @RequestBody ChargePointRequest request) {
         UserPoint updatedUserPoint = pointService.usePoint(id, request.getAmount());
+        log.info("{}포인트 사용, 사용아이디 {}", request.getAmount(), id);
         return new UserPointResponse(updatedUserPoint.id(), updatedUserPoint.point());
     }
 }
