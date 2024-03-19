@@ -42,13 +42,12 @@ public class PointController {
      * TODO - 특정 유저의 포인트 충전/이용 내역을 조회하는 기능을 작성해주세요.
      */
     @GetMapping("{id}/histories")
-    public List<PointHistoryResponse> history(
+    public List<PointHistory> history(
             @PathVariable long id
     ) {
         List<PointHistory> historyList = pointService.getHistoriesByUserId(id);
-        return historyList.stream()
-                .map(ph -> new PointHistoryResponse(ph.id(), ph.userId(), ph.amount(), ph.type(), ph.updateMillis()))
-                .collect(Collectors.toList());
+
+        return historyList;
     }
 
     /**
