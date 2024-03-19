@@ -58,8 +58,8 @@ public class PointController {
             @PathVariable long id,
             @RequestBody ChargePointRequest request
     ) {
-        UserPoint updatedUserPoint = pointService.chargePoint(id, request.getAmount());
-        log.info("Charging {} points for user {}", request.getAmount(), id);
+        UserPoint updatedUserPoint = pointService.chargePoint(id, request);
+        log.info("{}포인트 충전, 충전아이디 {}", request.getAmount(), id);
 
         return new UserPointResponse(updatedUserPoint.id(), updatedUserPoint.point());
     }
