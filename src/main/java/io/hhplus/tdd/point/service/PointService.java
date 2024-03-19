@@ -9,5 +9,5 @@ public interface PointService {
     UserPoint getPointById(long userId);
     List<PointHistory> getHistoriesByUserId(long userId);
     UserPoint chargePoint(long userId, long amount);
-    UserPoint usePoint(long userId, long amount);
+    UserPoint usePoint(long id, long amount);
 }

@@ -36,26 +36,53 @@ public class PointServiceImpl implements PointService {
         return pointHistoryRepository.selectAllByUserId(id);
     }
 
+//    @Override
+//    public UserPoint chargePoint(long id, long amount) {
+//        // 포인트 충전 로직
+//        UserPoint currentPoint = userPointRepository.selectById(id);
+//        long updatedPoint = currentPoint.point() + amount;
+//        UserPoint updatedUserPoint = userPointRepository.insertOrUpdate(id, updatedPoint);
+//        pointHistoryRepository.insert(id, amount, TransactionType.CHARGE, System.currentTimeMillis());
+//        return updatedUserPoint;
+//    }
+
     @Override
     public UserPoint chargePoint(long id, long amount) {
-        // 포인트 충전 로직
+        // Retrieve the current points from the repository
         UserPoint currentPoint = userPointRepository.selectById(id);
-        long updatedPoint = currentPoint.point() + amount;
-        UserPoint updatedUserPoint = userPointRepository.insertOrUpdate(id, updatedPoint);
-        pointHistoryRepository.insert(id, amount, TransactionType.CHARGE, System.currentTimeMillis());
+        if (currentPoint == null) {
+            throw new IllegalStateException("UserPoint not found for id: " + id);
+        }
+
+        // Update the points and create a new UserPoint instance for saving
+        long updatedPoints = currentPoint.point() + amount;
+        UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
+
+        // Save the updated points
+        userPointRepository.save(updatedUserPoint);
+
+        // Create and save a new PointHistory record
+        PointHistory history = new PointHistory(id,currentPoint.id(), amount, TransactionType.CHARGE, System.currentTimeMillis());
+        pointHistoryRepository.save(history);
+
+        // Return the updated UserPoint
         return updatedUserPoint;
     }
 
+
     @Override
     public UserPoint usePoint(long id, long amount) {
-        // 포인트 사용 로직
         UserPoint currentPoint = userPointRepository.selectById(id);
         if (currentPoint.point() < amount) {
             throw new IllegalArgumentException("포인트가 부족합니다.");
         }
-        long updatedPoint = currentPoint.point() - amount;
-        UserPoint updatedUserPoint = userPointRepository.insertOrUpdate(id, updatedPoint);
-        pointHistoryRepository.insert(id, -amount, TransactionType.USE, System.currentTimeMillis());
+        long updatedPoints = currentPoint.point() - amount;
+        UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
+        userPointRepository.save(updatedUserPoint);
+
+        PointHistory history = new PointHistory(id, currentPoint.id(), -amount, TransactionType.USE, System.currentTimeMillis());
+        pointHistoryRepository.save(history);
+
         return updatedUserPoint;
     }
 }

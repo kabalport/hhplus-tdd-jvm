@@ -24,13 +24,16 @@ import static org.mockito.Mockito.*;
 class PointServiceMockTest {
 
     private PointService pointService;
-    private UserPointRepository userPointRepository = mock(UserPointRepository.class);
-    private PointHistoryRepository pointHistoryRepository = mock(PointHistoryRepository.class);
+    private UserPointRepository userPointRepository;
+    private PointHistoryRepository pointHistoryRepository;
 
     @BeforeEach
     void setUp() {
+        userPointRepository = Mockito.mock(UserPointRepository.class);
+        pointHistoryRepository = Mockito.mock(PointHistoryRepository.class);
         pointService = new PointServiceImpl(userPointRepository, pointHistoryRepository);
     }
+
 
     @Test
     @DisplayName("아이디로 사용자의 포인트를 조회")
@@ -48,34 +51,44 @@ class PointServiceMockTest {
     @Test
     @DisplayName("사용자 포인트 충전")
     void testChargePoint() {
+        // given
         long userId = 1L;
         long amount = 500;
         UserPoint existingUserPoint = new UserPoint(userId, 1000, System.currentTimeMillis());
-        UserPoint updatedUserPoint = new UserPoint(userId, 1500, System.currentTimeMillis());
+        UserPoint expectedUpdatedUserPoint = new UserPoint(userId, 1500, System.currentTimeMillis()); // After charging
 
+        // Setup mocks to return expected objects on method calls
         when(userPointRepository.selectById(anyLong())).thenReturn(existingUserPoint);
-        when(userPointRepository.insertOrUpdate(anyLong(), anyLong())).thenReturn(updatedUserPoint);
+        when(userPointRepository.save(any(UserPoint.class))).thenReturn(expectedUpdatedUserPoint);
 
+        // Setup ArgumentCaptors to capture the objects passed to save methods
+        ArgumentCaptor<UserPoint> userPointCaptor = ArgumentCaptor.forClass(UserPoint.class);
+        ArgumentCaptor<PointHistory> pointHistoryCaptor = ArgumentCaptor.forClass(PointHistory.class);
+
+        // when
         UserPoint result = pointService.chargePoint(userId, amount);
 
-        assertEquals(1500, result.point());
-        verify(userPointRepository).insertOrUpdate(eq(userId), eq(1500L));
+        System.out.println(result);
 
-        // insert 메소드로 전달된 인자를 올바르게 캡처
-        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
-        ArgumentCaptor<Long> amountCaptor = ArgumentCaptor.forClass(Long.class);
-        ArgumentCaptor<TransactionType> typeCaptor = ArgumentCaptor.forClass(TransactionType.class);
-        ArgumentCaptor<Long> updateMillisCaptor = ArgumentCaptor.forClass(Long.class);
+        // then
+        // Assert the returned UserPoint is as expected
+        assertNotNull(result, "Result should not be null.");
+        assertEquals(1500, result.point(), "The user's points should be correctly updated after charging.");
 
-        verify(pointHistoryRepository).insert(userIdCaptor.capture(), amountCaptor.capture(), typeCaptor.capture(), updateMillisCaptor.capture());
+        // Verify save was called with the correct UserPoint object
+        verify(userPointRepository).save(userPointCaptor.capture());
+        UserPoint capturedUserPoint = userPointCaptor.getValue();
+        assertEquals(userId, capturedUserPoint.id());
+        assertEquals(1500, capturedUserPoint.point());
 
-        // 캡처된 값을 주장
-        assertEquals(userId, userIdCaptor.getValue());
-        assertEquals(amount, amountCaptor.getValue());
-        assertEquals(TransactionType.CHARGE, typeCaptor.getValue());
-        // updateMillis 값은 메소드 내부에서 생성되므로 0보다 큰지만 확인하면 됩니다
-        assertTrue(updateMillisCaptor.getValue() > 0);
+        // Verify save was called with the correct PointHistory object
+        verify(pointHistoryRepository).save(pointHistoryCaptor.capture());
+        PointHistory capturedPointHistory = pointHistoryCaptor.getValue();
+        assertEquals(userId, capturedPointHistory.userId());
+        assertEquals(amount, capturedPointHistory.amount());
+        assertEquals(TransactionType.CHARGE, capturedPointHistory.type());
     }
+
 
 
     @Test
@@ -98,32 +111,44 @@ class PointServiceMockTest {
     @Test
     @DisplayName("포인트 사용")
     void testUsePoint() {
-        long userId = 1L;
+        // given
+        long id = 1L;
         long useAmount = 200;
-        UserPoint existingUserPoint = new UserPoint(userId, 1000, System.currentTimeMillis());
-        UserPoint updatedUserPoint = new UserPoint(userId, 800, System.currentTimeMillis());
+        UserPoint existingUserPoint = new UserPoint(id, 1000, System.currentTimeMillis());
+        UserPoint updatedUserPoint = new UserPoint(id, 800, System.currentTimeMillis()); // 포인트 사용 후 예상되는 객체
 
-        when(userPointRepository.selectById(userId)).thenReturn(existingUserPoint);
-        when(userPointRepository.insertOrUpdate(anyLong(), anyLong())).thenReturn(updatedUserPoint);
+        // UserPoint 객체를 조회할 때 반환할 객체 설정
+        when(userPointRepository.selectById(id)).thenReturn(existingUserPoint);
 
-        UserPoint result = pointService.usePoint(userId, useAmount);
+        System.out.println(existingUserPoint);
+        // UserPoint 객체를 저장할 때 해당 객체를 반환하도록 설정
+        when(userPointRepository.save(any(UserPoint.class))).thenReturn(updatedUserPoint);
 
-        assertEquals(800, result.point());
-        verify(userPointRepository).insertOrUpdate(eq(userId), eq(800L));
+        System.out.println(updatedUserPoint);
 
-        // 포인트 사용 이력을 올바르게 기록했는지 검증
-        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
-        ArgumentCaptor<Long> amountCaptor = ArgumentCaptor.forClass(Long.class);
-        ArgumentCaptor<TransactionType> typeCaptor = ArgumentCaptor.forClass(TransactionType.class);
-        ArgumentCaptor<Long> updateMillisCaptor = ArgumentCaptor.forClass(Long.class);
+        // when: 사용자가 포인트를 사용
+        UserPoint result = pointService.usePoint(id, useAmount);
+        System.out.println(result);
 
-        verify(pointHistoryRepository).insert(userIdCaptor.capture(), amountCaptor.capture(), typeCaptor.capture(), updateMillisCaptor.capture());
+        // then: 결과 검증
+        assertEquals(800, result.point(), "사용 후 사용자 포인트가 올바르게 감소해야 합니다.");
 
-        assertEquals(userId, userIdCaptor.getValue());
-        assertEquals(-useAmount, amountCaptor.getValue()); // 사용량이므로 음수 값을 기대
-        assertEquals(TransactionType.USE, typeCaptor.getValue());
-        assertTrue(updateMillisCaptor.getValue() > 0);
+        // UserPoint 저장 확인
+        ArgumentCaptor<UserPoint> userPointArgumentCaptor = ArgumentCaptor.forClass(UserPoint.class);
+        Mockito.verify(userPointRepository).save(userPointArgumentCaptor.capture());
+        UserPoint capturedUserPoint = userPointArgumentCaptor.getValue();
+        assertEquals(id, capturedUserPoint.id(), "사용자 ID가 일치해야 합니다.");
+        assertEquals(800, capturedUserPoint.point(), "업데이트된 포인트가 올바르게 반영되어야 합니다.");
+
+        // PointHistory 저장 확인
+        ArgumentCaptor<PointHistory> pointHistoryArgumentCaptor = ArgumentCaptor.forClass(PointHistory.class);
+        Mockito.verify(pointHistoryRepository).save(pointHistoryArgumentCaptor.capture());
+        PointHistory capturedPointHistory = pointHistoryArgumentCaptor.getValue();
+        assertEquals(id, capturedPointHistory.userId(), "포인트 이력의 사용자 ID가 일치해야 합니다.");
+        assertEquals(-useAmount, capturedPointHistory.amount(), "포인트 이력의 사용량이 올바르게 기록되어야 합니다."); // 사용량은 음수로 기록
+        assertEquals(TransactionType.USE, capturedPointHistory.type(), "포인트 이력의 타입이 '사용'이어야 합니다.");
     }
+
 
     @Test
     @DisplayName("포인트 사용 실패 - 포인트 부족")
@@ -158,13 +183,13 @@ class PointServiceMockTest {
         // 초기 설정
         long userId = 1L;
         UserPoint initialUserPoint = new UserPoint(userId, 0L, System.currentTimeMillis());
-        Mockito.when(userPointRepository.selectById(userId)).thenReturn(initialUserPoint);
+        when(userPointRepository.selectById(userId)).thenReturn(initialUserPoint);
 
         final int numberOfThreads = 1000;
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
         ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
 
-        // 포인트 충전 작업 수행
+        // 동시 다발적 포인트 충전 작업 수행
         for (int i = 0; i < numberOfThreads; i++) {
             executorService.submit(() -> {
                 try {
@@ -178,23 +203,22 @@ class PointServiceMockTest {
         latch.await();
         executorService.shutdown();
 
-        // insertOrUpdate 메서드 호출을 캡처하기 위한 ArgumentCaptor
-        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
-        ArgumentCaptor<Long> amountCaptor = ArgumentCaptor.forClass(Long.class);
-        verify(userPointRepository, atLeastOnce()).insertOrUpdate(userIdCaptor.capture(), amountCaptor.capture());
+        // UserPoint 저장 메서드 호출 캡처를 위한 ArgumentCaptor 설정
+        ArgumentCaptor<UserPoint> userPointCaptor = ArgumentCaptor.forClass(UserPoint.class);
+        verify(userPointRepository, atLeastOnce()).save(userPointCaptor.capture());
 
-        // 모든 호출을 통해 증가된 포인트의 총합 계산
-        long totalIncreasedAmount = amountCaptor.getAllValues().stream().mapToLong(Long::longValue).sum();
+        // PointHistory 저장 메서드 호출 캡처를 위한 ArgumentCaptor 설정
+        ArgumentCaptor<PointHistory> pointHistoryCaptor = ArgumentCaptor.forClass(PointHistory.class);
+        verify(pointHistoryRepository, atLeast(numberOfThreads)).save(pointHistoryCaptor.capture());
 
-        System.out.println("===");
-        System.out.println(totalIncreasedAmount);
-        System.out.println("===");
-        System.out.println(1000L);
-        System.out.println("===");
+        // 모든 충전 작업을 통해 증가된 총 포인트 계산
+        long totalIncreasedAmount = userPointCaptor.getAllValues().stream().mapToLong(UserPoint::point).sum() - initialUserPoint.point() * numberOfThreads;
 
-        // 예상 값 검증
-        assertEquals(1000L, totalIncreasedAmount, "동시에 여러 요청을 처리했을 때 총 포인트 증가량이 예상과 다릅니다.");
+        System.out.println("총 증가된 포인트: " + totalIncreasedAmount);
+        System.out.println("예상 증가량: " + 1000L);
+
+        // 예상한 값과 실제 증가된 총 포인트 비교 검증
+        assertEquals(1000L, totalIncreasedAmount, "동시 다발적 요청 처리 시 총 포인트 증가량이 예상과 다릅니다.");
     }
-
 
 }

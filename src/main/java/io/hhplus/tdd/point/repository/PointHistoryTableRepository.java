@@ -27,4 +27,9 @@ public class PointHistoryTableRepository implements PointHistoryRepository {
     public List<PointHistory> selectAllByUserId(long userId) {
         return pointHistoryTable.selectAllByUserId(userId);
     }
+
+    @Override
+    public PointHistory save(PointHistory pointHistory) {
+        return pointHistoryTable.insert(pointHistory.userId(), pointHistory.amount(), pointHistory.type(), pointHistory.updateMillis());
+    }
 }
