@@ -1,8 +1,12 @@
 package io.hhplus.tdd.point;
 
 public record UserPoint(
-        Long id,
-        Long point,
-        Long updateMillis
+        long id,
+        long point,
+        long updateMillis
 ) {
+
+    public static UserPoint empty(long id) {
+        return new UserPoint(id, 0, System.currentTimeMillis());
+    }
 }
