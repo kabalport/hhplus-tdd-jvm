@@ -81,6 +81,11 @@ RentrantLock
 # 리팩토링
 fixture만들어서 성공객체,실패객체들 만들어서 테스트객체 재사용하게 리팩토링하기
 
+- Spring REST Docs api명세
+- https://helloworld.kurly.com/blog/spring-rest-docs-guide/
+- 유스케이스다이어그램
+- 클래스다이어그램
+- 시퀀스다이어그램
 
 
 ### 주의사항
