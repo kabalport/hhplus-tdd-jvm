@@ -10,23 +10,65 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
+/**
+ * TODO - PointService 테스트코드를 작성합니다.
+ *
+ * API - `PointController` : 포인트 api
+ * PATCH  `/point/{id}/charge` : 포인트를 충전한다.
+ * PATCH `/point/{id}/use` : 포인트를 사용한다.
+ * GET `/point/{id}` : 포인트를 조회한다.
+ * GET `/point/{id}/histories` : 포인트 내역을 조회한다.
+ *
+ * [요구사항]
+ * 사용자는 포인트를 충전할수 있습니다.
+ * 사용자는 포인트를 사용할수 있습니다.
+ * 사용자는 포인트를 조회할수 있습니다.
+ * 사용자는 포인트 내역을 조회할수 있습니다.
+ * 잔고가 부족할 경우, 포인트 사용은 실패하여야 합니다.
+ * 동시에 여러 건의 포인트 충전, 이용 요청이 들어올 경우 순차적으로 처리되어야 합니다.
+ *
+ * [테스트케이스 컨벤션]
+ * DisPlayName에 성공테스트-,실패테스트-, 이렇게 시작하기,-뒤에는 행위적기
+ *
+ * - 테스트케이스 작성적기 : 테스트 케이스 메소드 위의 주석으로 이 테스트를 간단하게 정의하기
+ * - 테스트케이스 작성이유적기 : 테스트케이스 작성이유를 주석에 적기
+ * - method 행위 검증 - 메소드 호출이 되었는지 확인
+ * - mock 데이터 검증 - 데이터베이스가 이러한 데이터를 리턴하면 어떻게 할것인지 확인
+ * - ArgumentCaptor 인자값 검증 - 의도한 대로 동작하면 이러한 인자값이 들어오는지 확인
+ *
+ * [테스트케이스 목표]
+ * - 기능 구현을 원하는 요구사항을 검증하는 테스트 추가
+ * - 구현된 기능에 대한 리팩토링 ( 인터페이스 구성, 코드클리닝 등 코드 베이스 정리 )
+ * - 모든 코드를 테스트 가능하게 구현하는 것을 목표로 진행합니다.
+ * - 모든 테스트 케이스가 성공했다는 것은 목표한 기능이 완성되었다는 것을 의미합니다.
+ * - 테스트를 만족하도록 기능 구현
+ */
 class PointServiceMockTest {
 
     private PointService pointService;
     private UserPointRepository userPointRepository;
     private PointHistoryRepository pointHistoryRepository;
 
+    /**
+     * TODO - 반복되는 Mock 객체 미리 세팅
+     * 재사용을 위해 property 들을 초기화해서 Repository 목킹하여 Service 인자로 사용합니다
+     */
     @BeforeEach
     void setUp() {
         userPointRepository = Mockito.mock(UserPointRepository.class);
@@ -34,191 +76,191 @@ class PointServiceMockTest {
         pointService = new PointServiceImpl(userPointRepository, pointHistoryRepository);
     }
 
-
+    /**
+     * TODO - 성공테스트-포인트조회
+     * 사용자는 포인트를 조회할수있습니다.
+     */
     @Test
-    @DisplayName("아이디로 사용자의 포인트를 조회")
+    @DisplayName("성공테스트-포인트조회:사용자는 포인트를 조회할수있습니다")
     void testGetPointById() {
-        long userId = 1L;
-        UserPoint mockUserPoint = new UserPoint(userId, 1000, System.currentTimeMillis());
-        Mockito.when(userPointRepository.selectById(userId)).thenReturn(mockUserPoint);
-
-        UserPoint result = pointService.getPointById(userId);
-
+        // given : 준비
+        // 테스트에 필요한 데이터정의 : givenId
+        // 테스트객체정의 : mockUserPoint
+        // 테스트대상메서드 실행시 반환객체정의: userPointRepository.selectById 메서드 호출시 mockUserPoint 반환
+        long givenId = 1L;
+        UserPoint mockUserPoint = new UserPoint(givenId, 1000, System.currentTimeMillis());
+        Mockito.when(userPointRepository.selectById(givenId)).thenReturn(mockUserPoint);
+        // when : 실행
+        UserPoint result = pointService.getPointById(givenId);
+        // then : 검증
+        // 기대결과 검증 : when 에서의 결과로 받은 result 객체가 예상객체(mockUserPoint)랑 일치하는지 검증하기
+        // userPointRepository의 selectById 메서드가 정확히 한 번 호출되었는지 검증합니다.
         assertEquals(mockUserPoint, result);
-        Mockito.verify(userPointRepository, times(1)).selectById(userId);
+        Mockito.verify(userPointRepository, times(1)).selectById(givenId);
     }
 
+    /**
+     * TODO - 성공테스트-포인트충전
+     * 사용자는 포인트를 충전할수있습니다.
+     */
     @Test
-    @DisplayName("사용자 포인트 충전")
+    @DisplayName("성공테스트-포인트충전:사용자는 포인트를 충전할수있습니다")
     void testChargePoint() {
-        // given
-        long userId = 1L;
-        long amount = 500;
-        UserPoint existingUserPoint = new UserPoint(userId, 1000, System.currentTimeMillis());
-        UserPoint expectedUpdatedUserPoint = new UserPoint(userId, 1500, System.currentTimeMillis()); // After charging
-
-        // Setup mocks to return expected objects on method calls
-        when(userPointRepository.selectById(anyLong())).thenReturn(existingUserPoint);
-        when(userPointRepository.save(any(UserPoint.class))).thenReturn(expectedUpdatedUserPoint);
-
-        // Setup ArgumentCaptors to capture the objects passed to save methods
+        // given : 준비
+        // 테스트에 필요한 데이터정의
+        // givenId,givenAmount(테스트 id,충전할 포인트)
+        // 테스트객체정의
+        // existingUserPoint,expectedUpdatedUserPoint(기존 사용자 포인트와 충전 후 예상되는 사용자 포인트 객체를 정의)
+        // 테스트대상메서드 실행시 반환객체정의
+        // userPointRepository.selectById 메서드 호출시 existingUserPoint 반환
+        // userPointRepository의 save 메서드가 호출될 때의 expectedUpdatedUserPoint 반환
+        // ArgumentCaptor를 사용하여 userPointRepository와 pointHistoryRepository에 전달된 인자를 캡처합니다.
+        long givenId = 1L;
+        long givenAmount = 500L;
+        UserPoint existingUserPoint = new UserPoint(givenId, 1000L, System.currentTimeMillis());
+        UserPoint expectedUpdatedUserPoint = new UserPoint(givenId, 1500L, System.currentTimeMillis());
+        Mockito.when(userPointRepository.selectById(givenId)).thenReturn(existingUserPoint);
+        Mockito.when(userPointRepository.save(any(UserPoint.class))).thenReturn(expectedUpdatedUserPoint);
         ArgumentCaptor<UserPoint> userPointCaptor = ArgumentCaptor.forClass(UserPoint.class);
         ArgumentCaptor<PointHistory> pointHistoryCaptor = ArgumentCaptor.forClass(PointHistory.class);
 
-        // when
-        UserPoint result = pointService.chargePoint(userId, amount);
-
-        System.out.println(result);
+        // when: 실행
+        // 사용자 포인트를 충전하는 메서드를 테스트합니다.
+        UserPoint result = pointService.chargePoint(givenId, givenAmount);
 
         // then
-        // Assert the returned UserPoint is as expected
-        assertNotNull(result, "Result should not be null.");
-        assertEquals(1500, result.point(), "The user's points should be correctly updated after charging.");
+        assertNotNull(result, "결과는 null인지 확인");
+        assertEquals(1500, result.point(), "충전 후 포인트가 정확하게 업데이트되었는지 확인");
 
-        // Verify save was called with the correct UserPoint object
-        verify(userPointRepository).save(userPointCaptor.capture());
+        // save 메서드에 전달된 UserPoint 객체가 예상대로 설정되었는지 검증합니다.
+        // userPointRepository의 save 메서드에 전달된 UserPoint 객체 캡처
+        Mockito.verify(userPointRepository, Mockito.times(1)).save(userPointCaptor.capture());
+        // 캡처된 UserPoint 객체 가져오기
         UserPoint capturedUserPoint = userPointCaptor.getValue();
-        assertEquals(userId, capturedUserPoint.id());
+        // 캡처된 객체의 ID가 예상대로인지 확인
+        assertEquals(givenId, capturedUserPoint.id());
+        // 캡처된 객체의 포인트 양이 예상대로인지 확인
         assertEquals(1500, capturedUserPoint.point());
 
-        // Verify save was called with the correct PointHistory object
-        verify(pointHistoryRepository).save(pointHistoryCaptor.capture());
+        // pointHistoryRepository의 save 메서드에 전달된 PointHistory 객체가 예상대로 설정되었는지 검증합니다.
+        // pointHistoryRepository의 save 메서드에 전달된 PointHistory 객체 캡처
+        Mockito.verify(pointHistoryRepository, Mockito.times(1)).save(pointHistoryCaptor.capture());
+        // 캡처된 PointHistory 객체 가져오기
         PointHistory capturedPointHistory = pointHistoryCaptor.getValue();
-        assertEquals(userId, capturedPointHistory.userId());
-        assertEquals(amount, capturedPointHistory.amount());
+        // 캡처된 객체의 사용자 ID가 예상대로인지 확인
+        assertEquals(givenId, capturedPointHistory.userId());
+        // 캡처된 객체의 충전량이 예상대로인지 확인
+        assertEquals(givenAmount, capturedPointHistory.amount());
+        // 캡처된 객체의 트랜잭션 타입이 CHARGE인지 확인
         assertEquals(TransactionType.CHARGE, capturedPointHistory.type());
     }
-
-
-
+    /**
+     * TODO - 성공테스트-최초회원포인트는0입니다.
+     * UserPoint의 empty 메서드는 주어진 ID를 가진 빈 UserPoint 객체를 생성합니다.
+     */
     @Test
-    @DisplayName("사용자 포인트 사용 내역 조회")
-    void testGetHistoriesByUserId() {
-        long userId = 1L;
-        List<PointHistory> mockHistories = Arrays.asList(
-                new PointHistory(1L, userId, 500, TransactionType.CHARGE, System.currentTimeMillis()),
-                new PointHistory(2L, userId, 300, TransactionType.USE, System.currentTimeMillis())
-        );
-        when(pointHistoryRepository.selectAllByUserId(userId)).thenReturn(mockHistories);
+    @DisplayName("성공테스트-최초회원포인트는0입니다-UserPoint의 empty 메서드는 주어진 ID를 가진 빈 UserPoint 객체를 생성합니다")
+    void testEmptyUserPointCreation() {
+        // given: 준비
+        long givenId = 1L;
 
-        List<PointHistory> result = pointService.getHistoriesByUserId(userId);
+        // when: 실행
+        UserPoint emptyUserPoint = UserPoint.empty(givenId);
 
-        assertEquals(mockHistories.size(), result.size());
-        assertEquals(mockHistories, result);
-        verify(pointHistoryRepository, times(1)).selectAllByUserId(userId);
+        // then: 검증
+        assertNotNull(emptyUserPoint, "생성된 UserPoint 객체는 null이 아니어야 합니다.");
+        assertEquals(givenId, emptyUserPoint.id(), "생성된 UserPoint 객체의 ID가 주어진 ID와 일치해야 합니다.");
+        assertEquals(0, emptyUserPoint.point(), "생성된 UserPoint 객체의 포인트는 0이어야 합니다.");
     }
 
+    /**
+     * TODO - 성공테스트-포인트사용내역조회
+     * 사용자는 포인트사용내역을 조회할수있습니다
+     */
     @Test
-    @DisplayName("포인트 사용")
+    @DisplayName("성공테스트-포인트사용내역조회-사용자는 포인트사용내역을 조회할수있습니다")
+    void testGetHistoriesByUserId() {
+        // given : 준비
+        // 테스트에 필요한 데이터정의 : givenUserId
+        // 테스트객체정의 : mockHistories
+        // 테스트대상메서드 실행시 반환객체정의: PointHistoryRepository.selectAllByUserId 메서드 호출시 mockHistories 반환
+        long givenUserId = 1L;
+        List<PointHistory> mockHistories = Arrays.asList(
+                new PointHistory(1L, givenUserId, 500, TransactionType.CHARGE, System.currentTimeMillis()),
+                new PointHistory(2L, givenUserId, 300, TransactionType.USE, System.currentTimeMillis())
+        );
+        Mockito.when(pointHistoryRepository.selectAllByUserId(givenUserId)).thenReturn(mockHistories);
+        // when : 실행
+        // 포인트 서비스의 getHistoriesByUserId 메서드를 호출하여, 주어진 사용자 ID에 대한 포인트 사용 내역을 조회합니다.
+        List<PointHistory> result = pointService.getHistoriesByUserId(givenUserId);
+
+        // then: 검증
+        assertEquals(mockHistories.size(), result.size(), "조회된 포인트사용내역 크기가 예상과 일치하는지 확인");
+        assertEquals(mockHistories, result, "조회된 포인트사용내역이 예상과 일치하는지 확인");
+        Mockito.verify(pointHistoryRepository, times(1)).selectAllByUserId(givenUserId);
+    }
+
+    /**
+     * TODO - 성공테스트-포인트사용
+     * 사용자는 포인트를 사용할수있습니다
+     */
+    @Test
+    @DisplayName("성공테스트-포인트사용:사용자는 포인트를 사용할수있습니다")
     void testUsePoint() {
-        // given
-        long id = 1L;
-        long useAmount = 200;
-        UserPoint existingUserPoint = new UserPoint(id, 1000, System.currentTimeMillis());
-        UserPoint updatedUserPoint = new UserPoint(id, 800, System.currentTimeMillis()); // 포인트 사용 후 예상되는 객체
-
+        // given : 준비
+        long givenId = 1L;
+        long givenUseAmount = 200;
+        UserPoint existingUserPoint = new UserPoint(givenId, 1000, System.currentTimeMillis());
+        UserPoint updatedUserPoint = new UserPoint(givenId, 800, System.currentTimeMillis());
         // UserPoint 객체를 조회할 때 반환할 객체 설정
-        when(userPointRepository.selectById(id)).thenReturn(existingUserPoint);
-
-        System.out.println(existingUserPoint);
+        Mockito.when(userPointRepository.selectById(givenId)).thenReturn(existingUserPoint);
         // UserPoint 객체를 저장할 때 해당 객체를 반환하도록 설정
-        when(userPointRepository.save(any(UserPoint.class))).thenReturn(updatedUserPoint);
-
-        System.out.println(updatedUserPoint);
+        Mockito.when(userPointRepository.save(any(UserPoint.class))).thenReturn(updatedUserPoint);
 
         // when: 사용자가 포인트를 사용
-        UserPoint result = pointService.usePoint(id, useAmount);
-        System.out.println(result);
+        UserPoint result = pointService.usePoint(givenId, givenUseAmount);
 
         // then: 결과 검증
         assertEquals(800, result.point(), "사용 후 사용자 포인트가 올바르게 감소해야 합니다.");
-
         // UserPoint 저장 확인
         ArgumentCaptor<UserPoint> userPointArgumentCaptor = ArgumentCaptor.forClass(UserPoint.class);
         Mockito.verify(userPointRepository).save(userPointArgumentCaptor.capture());
         UserPoint capturedUserPoint = userPointArgumentCaptor.getValue();
-        assertEquals(id, capturedUserPoint.id(), "사용자 ID가 일치해야 합니다.");
+        assertEquals(givenId, capturedUserPoint.id(), "사용자 ID가 일치해야 합니다.");
         assertEquals(800, capturedUserPoint.point(), "업데이트된 포인트가 올바르게 반영되어야 합니다.");
-
         // PointHistory 저장 확인
         ArgumentCaptor<PointHistory> pointHistoryArgumentCaptor = ArgumentCaptor.forClass(PointHistory.class);
         Mockito.verify(pointHistoryRepository).save(pointHistoryArgumentCaptor.capture());
         PointHistory capturedPointHistory = pointHistoryArgumentCaptor.getValue();
-        assertEquals(id, capturedPointHistory.userId(), "포인트 이력의 사용자 ID가 일치해야 합니다.");
-        assertEquals(-useAmount, capturedPointHistory.amount(), "포인트 이력의 사용량이 올바르게 기록되어야 합니다."); // 사용량은 음수로 기록
+        assertEquals(givenId, capturedPointHistory.userId(), "포인트 이력의 사용자 ID가 일치해야 합니다.");
+        assertEquals(-givenUseAmount, capturedPointHistory.amount(), "포인트 이력의 사용량이 올바르게 기록되어야 합니다."); // 사용량은 음수로 기록
         assertEquals(TransactionType.USE, capturedPointHistory.type(), "포인트 이력의 타입이 '사용'이어야 합니다.");
     }
 
-
+    /**
+     * TODO - 실패테스트-포인트사용실패(포인트부족)
+     * 사용자는 포인트가 부족하여 사용에 실패합니다
+     */
     @Test
-    @DisplayName("포인트 사용 실패 - 포인트 부족")
+    @DisplayName("실패테스트-포인트사용실패(포인트부족)-사용자는 포인트가 부족하여 사용에 실패합니다")
     void testUsePointInsufficientPoints() {
-        long userId = 1L;
-        long useAmount = 1200; // 사용하려는 포인트가 현재 포인트보다 많음
-        UserPoint existingUserPoint = new UserPoint(userId, 1000, System.currentTimeMillis());
-
-        when(userPointRepository.selectById(userId)).thenReturn(existingUserPoint);
-
+        // given: 준비
+        // 테스트대상: givenUserId,givenUseAmount(사용자아이디,사용포인트양)
+        // mock 객체정의 : existingUserPoint(포인트가 사용포인트량보다 작게 정의)
+        // 실행반환객체정의 : userPointRepository의 selectById 메서드가 호출될 때, existingUserPoint 객체를 반환하도록 설정합니다.
+        long givenUserId = 1L;
+        long givenUseAmount = 1200;
+        // 사용하려는 포인트가 현재 포인트보다 많음
+        UserPoint existingUserPoint = new UserPoint(givenUserId, 1000, System.currentTimeMillis());
+        Mockito.when(userPointRepository.selectById(givenUserId)).thenReturn(existingUserPoint);
+        // when: 실행
         Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            pointService.usePoint(userId, useAmount);
+            pointService.usePoint(givenUserId, givenUseAmount);
         });
-
+        // then: 예외 발생을 검증합니다.
+        // 포인트 사용 시 포인트가 부족하여 발생하는 예외의 메시지가 "포인트가 부족합니다."인지 검증합니다.
         assertEquals("포인트가 부족합니다.", exception.getMessage());
     }
 
-    /**
-     * 동시성 고민 - 실패케이스 만들기
-     * 
-     * 동시에 여러개를 보내서 테스트
-     * 멀티스레드를 사용
-     * 천개의 요청 numberOfThreads 1000으로 설정
-     * 멀티스레드를 사용 ExecutorService
-     * for문을 사용해 1000개의 요청을 보낼것이다.
-     * 모든 요청이 끝날때까지 기다려야 하므로 CountDownLatch를 사용
-     */
-
-    @Test
-    @DisplayName("동시에 여러 요청을 보내 포인트 충전 시 레이스 컨디션 발생 테스트")
-    void testRaceConditionOnChargePoint() throws InterruptedException {
-        // 초기 설정
-        long userId = 1L;
-        UserPoint initialUserPoint = new UserPoint(userId, 0L, System.currentTimeMillis());
-        when(userPointRepository.selectById(userId)).thenReturn(initialUserPoint);
-
-        final int numberOfThreads = 1000;
-        CountDownLatch latch = new CountDownLatch(numberOfThreads);
-        ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
-
-        // 동시 다발적 포인트 충전 작업 수행
-        for (int i = 0; i < numberOfThreads; i++) {
-            executorService.submit(() -> {
-                try {
-                    pointService.chargePoint(userId, 1L);
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await();
-        executorService.shutdown();
-
-        // UserPoint 저장 메서드 호출 캡처를 위한 ArgumentCaptor 설정
-        ArgumentCaptor<UserPoint> userPointCaptor = ArgumentCaptor.forClass(UserPoint.class);
-        verify(userPointRepository, atLeastOnce()).save(userPointCaptor.capture());
-
-        // PointHistory 저장 메서드 호출 캡처를 위한 ArgumentCaptor 설정
-        ArgumentCaptor<PointHistory> pointHistoryCaptor = ArgumentCaptor.forClass(PointHistory.class);
-        verify(pointHistoryRepository, atLeast(numberOfThreads)).save(pointHistoryCaptor.capture());
-
-        // 모든 충전 작업을 통해 증가된 총 포인트 계산
-        long totalIncreasedAmount = userPointCaptor.getAllValues().stream().mapToLong(UserPoint::point).sum() - initialUserPoint.point() * numberOfThreads;
-
-        System.out.println("총 증가된 포인트: " + totalIncreasedAmount);
-        System.out.println("예상 증가량: " + 1000L);
-
-        // 예상한 값과 실제 증가된 총 포인트 비교 검증
-        assertEquals(1000L, totalIncreasedAmount, "동시 다발적 요청 처리 시 총 포인트 증가량이 예상과 다릅니다.");
-    }
 
 }

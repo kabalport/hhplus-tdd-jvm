@@ -36,36 +36,26 @@ public class PointServiceImpl implements PointService {
         return pointHistoryRepository.selectAllByUserId(id);
     }
 
-//    @Override
-//    public UserPoint chargePoint(long id, long amount) {
-//        // 포인트 충전 로직
-//        UserPoint currentPoint = userPointRepository.selectById(id);
-//        long updatedPoint = currentPoint.point() + amount;
-//        UserPoint updatedUserPoint = userPointRepository.insertOrUpdate(id, updatedPoint);
-//        pointHistoryRepository.insert(id, amount, TransactionType.CHARGE, System.currentTimeMillis());
-//        return updatedUserPoint;
-//    }
 
     @Override
-    public UserPoint chargePoint(long id, long amount) {
-        // Retrieve the current points from the repository
+    public synchronized UserPoint chargePoint(long id, long amount) {
+
         UserPoint currentPoint = userPointRepository.selectById(id);
+//        if(currentPoint.point()>100000){
+//            throw new IllegalStateException("100000포인트이상 넣을수 없습니다");
+//        }
         if (currentPoint == null) {
-            throw new IllegalStateException("UserPoint not found for id: " + id);
+            throw new IllegalStateException("id가 없습니다 : " + id);
         }
 
-        // Update the points and create a new UserPoint instance for saving
         long updatedPoints = currentPoint.point() + amount;
         UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
 
-        // Save the updated points
         userPointRepository.save(updatedUserPoint);
 
-        // Create and save a new PointHistory record
         PointHistory history = new PointHistory(id,currentPoint.id(), amount, TransactionType.CHARGE, System.currentTimeMillis());
         pointHistoryRepository.save(history);
 
-        // Return the updated UserPoint
         return updatedUserPoint;
     }
 
