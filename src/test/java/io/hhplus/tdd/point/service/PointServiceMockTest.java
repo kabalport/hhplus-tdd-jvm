@@ -10,54 +10,23 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
  * TODO - PointService 테스트코드를 작성합니다.
+ * 성공테스트-포인트충전:사용자는 포인트를 충전할수있습니다
+ * 성공테스트-포인트충전:최초회원은 포인트는 0으로 설정됩니다
  *
- * API - `PointController` : 포인트 api
- * PATCH  `/point/{id}/charge` : 포인트를 충전한다.
- * PATCH `/point/{id}/use` : 포인트를 사용한다.
- * GET `/point/{id}` : 포인트를 조회한다.
- * GET `/point/{id}/histories` : 포인트 내역을 조회한다.
+ * 성공테스트-포인트사용:사용자는 포인트를 사용할수있습니다
+ * 실패테스트-포인트사용실패(포인트부족)-사용자는 포인트가 부족하여 사용에 실패합니다
  *
- * [요구사항]
- * 사용자는 포인트를 충전할수 있습니다.
- * 사용자는 포인트를 사용할수 있습니다.
- * 사용자는 포인트를 조회할수 있습니다.
- * 사용자는 포인트 내역을 조회할수 있습니다.
- * 잔고가 부족할 경우, 포인트 사용은 실패하여야 합니다.
- * 동시에 여러 건의 포인트 충전, 이용 요청이 들어올 경우 순차적으로 처리되어야 합니다.
+ * 성공테스트-포인트조회:사용자는 포인트를 조회할수있습니다
  *
- * [테스트케이스 컨벤션]
- * DisPlayName에 성공테스트-,실패테스트-, 이렇게 시작하기,-뒤에는 행위적기
- *
- * - 테스트케이스 작성적기 : 테스트 케이스 메소드 위의 주석으로 이 테스트를 간단하게 정의하기
- * - 테스트케이스 작성이유적기 : 테스트케이스 작성이유를 주석에 적기
- * - method 행위 검증 - 메소드 호출이 되었는지 확인
- * - mock 데이터 검증 - 데이터베이스가 이러한 데이터를 리턴하면 어떻게 할것인지 확인
- * - ArgumentCaptor 인자값 검증 - 의도한 대로 동작하면 이러한 인자값이 들어오는지 확인
- *
- * [테스트케이스 목표]
- * - 기능 구현을 원하는 요구사항을 검증하는 테스트 추가
- * - 구현된 기능에 대한 리팩토링 ( 인터페이스 구성, 코드클리닝 등 코드 베이스 정리 )
- * - 모든 코드를 테스트 가능하게 구현하는 것을 목표로 진행합니다.
- * - 모든 테스트 케이스가 성공했다는 것은 목표한 기능이 완성되었다는 것을 의미합니다.
- * - 테스트를 만족하도록 기능 구현
+ * 성공테스트-포인트사용내역조회-사용자는 포인트사용내역을 조회할수있습니다
  */
 class PointServiceMockTest {
 
@@ -74,6 +43,25 @@ class PointServiceMockTest {
         userPointRepository = Mockito.mock(UserPointRepository.class);
         pointHistoryRepository = Mockito.mock(PointHistoryRepository.class);
         pointService = new PointServiceImpl(userPointRepository, pointHistoryRepository);
+    }
+
+    /**
+     * TODO - 성공테스트-최초회원의 포인트는 0으로 설정됩니다.
+     * UserPoint의 empty 메서드는 주어진 ID를 가진 빈 UserPoint 객체를 생성합니다.
+     */
+    @Test
+    @DisplayName("성공테스트-최초회원의 포인트는 0으로 설정됩니다.-UserPoint의 empty 메서드는 주어진 ID를 가진 빈 UserPoint 객체를 생성합니다")
+    void testEmptyUserPointCreation() {
+        // given: 준비
+        long givenId = 1L;
+
+        // when: 실행
+        UserPoint emptyUserPoint = UserPoint.empty(givenId);
+
+        // then: 검증
+        assertNotNull(emptyUserPoint, "생성된 UserPoint 객체는 null이 아니어야 합니다.");
+        assertEquals(givenId, emptyUserPoint.id(), "생성된 UserPoint 객체의 ID가 주어진 ID와 일치해야 합니다.");
+        assertEquals(0, emptyUserPoint.point(), "생성된 UserPoint 객체의 포인트는 0이어야 합니다.");
     }
 
     /**
@@ -154,24 +142,7 @@ class PointServiceMockTest {
         // 캡처된 객체의 트랜잭션 타입이 CHARGE인지 확인
         assertEquals(TransactionType.CHARGE, capturedPointHistory.type());
     }
-    /**
-     * TODO - 성공테스트-최초회원포인트는0입니다.
-     * UserPoint의 empty 메서드는 주어진 ID를 가진 빈 UserPoint 객체를 생성합니다.
-     */
-    @Test
-    @DisplayName("성공테스트-최초회원포인트는0입니다-UserPoint의 empty 메서드는 주어진 ID를 가진 빈 UserPoint 객체를 생성합니다")
-    void testEmptyUserPointCreation() {
-        // given: 준비
-        long givenId = 1L;
 
-        // when: 실행
-        UserPoint emptyUserPoint = UserPoint.empty(givenId);
-
-        // then: 검증
-        assertNotNull(emptyUserPoint, "생성된 UserPoint 객체는 null이 아니어야 합니다.");
-        assertEquals(givenId, emptyUserPoint.id(), "생성된 UserPoint 객체의 ID가 주어진 ID와 일치해야 합니다.");
-        assertEquals(0, emptyUserPoint.point(), "생성된 UserPoint 객체의 포인트는 0이어야 합니다.");
-    }
 
     /**
      * TODO - 성공테스트-포인트사용내역조회
@@ -261,6 +232,4 @@ class PointServiceMockTest {
         // 포인트 사용 시 포인트가 부족하여 발생하는 예외의 메시지가 "포인트가 부족합니다."인지 검증합니다.
         assertEquals("포인트가 부족합니다.", exception.getMessage());
     }
-
-
 }
