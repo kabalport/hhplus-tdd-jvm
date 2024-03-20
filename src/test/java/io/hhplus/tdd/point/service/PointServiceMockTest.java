@@ -113,6 +113,22 @@ class PointServiceMockTest {
         assertEquals(TransactionType.CHARGE, capturedPointHistory.type());
     }
 
+
+    @Test
+    @DisplayName("실패테스트-포인트충전실패(아이디가 없습니다)")
+    void 아이디문제포인트충전실패() {
+        long givenId = 1L;
+        long givenAmount = 500L;
+        Mockito.when(userPointRepository.selectById(givenId)).thenReturn(null);
+
+        Exception exception = assertThrows(PointException.class, () -> {
+            pointService.chargePoint(givenId,givenAmount);
+        });
+
+        assertEquals("아이디가 없습니다.", exception.getMessage());
+    }
+
+
     /**
      * Todo - 실패테스트-포인트충전실패(음수포인트충전시도)
      * 클라이언트의 어떠한 이유로 음수가 요청으로 들어갔다면 포인트가 음수라는것을 exception 던져주기
@@ -121,12 +137,14 @@ class PointServiceMockTest {
     @DisplayName("실패테스트-포인트충전실패(음수포인트충전시도)")
     void 음수포인트충전시도(){
         //given
-        long givenId = 1L;
-        long negativeAmount = -500L;
+        long givenUserId = 1L;
+        long givenNegativeAmount = -500L;
+        UserPoint existingUserPoint = new UserPoint(givenUserId, 1000, System.currentTimeMillis());
+        Mockito.when(userPointRepository.selectById(givenUserId)).thenReturn(existingUserPoint);
 
         // when: 실행
         Exception exception = assertThrows(PointException.class, () -> {
-            pointService.chargePoint(givenId,negativeAmount);
+            pointService.chargePoint(givenUserId,givenNegativeAmount);
         });
         // then: 예외 발생을 검증합니다.
         // 포인트 사용 시 포인트가 부족하여 발생하는 예외의 메시지가 "포인트가 부족합니다."인지 검증합니다.
@@ -164,7 +182,7 @@ class PointServiceMockTest {
     @DisplayName("실패테스트-포인트조회실패(존재하지않는 아이디로 포인트 조회)")
     void testGetPointByInvalidId() {
         long invalidUserId = 999L;
-        when(userPointRepository.selectById(invalidUserId)).thenReturn(null);
+        Mockito.when(userPointRepository.selectById(invalidUserId)).thenReturn(null);
 
         Exception exception = assertThrows(PointException.class, () -> {
             pointService.getPointById(invalidUserId);

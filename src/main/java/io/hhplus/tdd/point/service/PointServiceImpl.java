@@ -46,12 +46,16 @@ public class PointServiceImpl implements PointService {
     public synchronized UserPoint chargePoint(long id, long amount) {
 
         UserPoint currentPoint = userPointRepository.selectById(id);
-        if(currentPoint.point()>1000000){
-            throw new IllegalStateException("1000000 포인트이상 넣을수 없습니다");
+        if(currentPoint == null){
+            throw new PointException("아이디가 없습니다.");
         }
         if (amount < 0) {
             throw new PointException("충전포인트는 음수가 될수 없습니다.");
         }
+        if(currentPoint.point()>1000000){
+            throw new PointException("1000000 포인트이상 넣을수 없습니다");
+        }
+
 
         long updatedPoints = currentPoint.point() + amount;
         UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
