@@ -1,5 +1,6 @@
 package io.hhplus.tdd.point.service;
 
+import io.hhplus.tdd.exception.PointException;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
@@ -18,15 +19,6 @@ import static org.mockito.Mockito.*;
 
 /**
  * TODO - PointService 테스트코드를 작성합니다.
- * 성공테스트-포인트충전:사용자는 포인트를 충전할수있습니다
- * 성공테스트-포인트충전:최초회원은 포인트는 0으로 설정됩니다
- *
- * 성공테스트-포인트사용:사용자는 포인트를 사용할수있습니다
- * 실패테스트-포인트사용실패(포인트부족)-사용자는 포인트가 부족하여 사용에 실패합니다
- *
- * 성공테스트-포인트조회:사용자는 포인트를 조회할수있습니다
- *
- * 성공테스트-포인트사용내역조회-사용자는 포인트사용내역을 조회할수있습니다
  */
 class PointServiceMockTest {
 
@@ -64,28 +56,6 @@ class PointServiceMockTest {
         assertEquals(0, emptyUserPoint.point(), "생성된 UserPoint 객체의 포인트는 0이어야 합니다.");
     }
 
-    /**
-     * TODO - 성공테스트-포인트조회
-     * 사용자는 포인트를 조회할수있습니다.
-     */
-    @Test
-    @DisplayName("성공테스트-포인트조회:사용자는 포인트를 조회할수있습니다")
-    void testGetPointById() {
-        // given : 준비
-        // 테스트에 필요한 데이터정의 : givenId
-        // 테스트객체정의 : mockUserPoint
-        // 테스트대상메서드 실행시 반환객체정의: userPointRepository.selectById 메서드 호출시 mockUserPoint 반환
-        long givenId = 1L;
-        UserPoint mockUserPoint = new UserPoint(givenId, 1000, System.currentTimeMillis());
-        Mockito.when(userPointRepository.selectById(givenId)).thenReturn(mockUserPoint);
-        // when : 실행
-        UserPoint result = pointService.getPointById(givenId);
-        // then : 검증
-        // 기대결과 검증 : when 에서의 결과로 받은 result 객체가 예상객체(mockUserPoint)랑 일치하는지 검증하기
-        // userPointRepository의 selectById 메서드가 정확히 한 번 호출되었는지 검증합니다.
-        assertEquals(mockUserPoint, result);
-        Mockito.verify(userPointRepository, times(1)).selectById(givenId);
-    }
 
     /**
      * TODO - 성공테스트-포인트충전
@@ -93,7 +63,7 @@ class PointServiceMockTest {
      */
     @Test
     @DisplayName("성공테스트-포인트충전:사용자는 포인트를 충전할수있습니다")
-    void testChargePoint() {
+    void 포인트충전() {
         // given : 준비
         // 테스트에 필요한 데이터정의
         // givenId,givenAmount(테스트 id,충전할 포인트)
@@ -143,33 +113,67 @@ class PointServiceMockTest {
         assertEquals(TransactionType.CHARGE, capturedPointHistory.type());
     }
 
-
     /**
-     * TODO - 성공테스트-포인트사용내역조회
-     * 사용자는 포인트사용내역을 조회할수있습니다
+     * Todo - 실패테스트-포인트충전실패(음수포인트충전시도)
+     * 클라이언트의 어떠한 이유로 음수가 요청으로 들어갔다면 포인트가 음수라는것을 exception 던져주기
      */
     @Test
-    @DisplayName("성공테스트-포인트사용내역조회-사용자는 포인트사용내역을 조회할수있습니다")
-    void testGetHistoriesByUserId() {
-        // given : 준비
-        // 테스트에 필요한 데이터정의 : givenUserId
-        // 테스트객체정의 : mockHistories
-        // 테스트대상메서드 실행시 반환객체정의: PointHistoryRepository.selectAllByUserId 메서드 호출시 mockHistories 반환
-        long givenUserId = 1L;
-        List<PointHistory> mockHistories = Arrays.asList(
-                new PointHistory(1L, givenUserId, 500, TransactionType.CHARGE, System.currentTimeMillis()),
-                new PointHistory(2L, givenUserId, 300, TransactionType.USE, System.currentTimeMillis())
-        );
-        Mockito.when(pointHistoryRepository.selectAllByUserId(givenUserId)).thenReturn(mockHistories);
-        // when : 실행
-        // 포인트 서비스의 getHistoriesByUserId 메서드를 호출하여, 주어진 사용자 ID에 대한 포인트 사용 내역을 조회합니다.
-        List<PointHistory> result = pointService.getHistoriesByUserId(givenUserId);
+    @DisplayName("실패테스트-포인트충전실패(음수포인트충전시도)")
+    void 음수포인트충전시도(){
+        //given
+        long givenId = 1L;
+        long negativeAmount = -500L;
 
-        // then: 검증
-        assertEquals(mockHistories.size(), result.size(), "조회된 포인트사용내역 크기가 예상과 일치하는지 확인");
-        assertEquals(mockHistories, result, "조회된 포인트사용내역이 예상과 일치하는지 확인");
-        Mockito.verify(pointHistoryRepository, times(1)).selectAllByUserId(givenUserId);
+        // when: 실행
+        Exception exception = assertThrows(PointException.class, () -> {
+            pointService.chargePoint(givenId,negativeAmount);
+        });
+        // then: 예외 발생을 검증합니다.
+        // 포인트 사용 시 포인트가 부족하여 발생하는 예외의 메시지가 "포인트가 부족합니다."인지 검증합니다.
+        assertEquals("충전포인트는 음수가 될수 없습니다.", exception.getMessage());
     }
+
+
+
+
+
+    /**
+     * TODO - 성공테스트-포인트조회
+     * 사용자는 포인트를 조회할수있습니다.
+     */
+    @Test
+    @DisplayName("성공테스트-포인트조회:사용자는 포인트를 조회할수있습니다")
+    void testGetPointById() {
+        // given : 준비
+        // 테스트에 필요한 데이터정의 : givenId
+        // 테스트객체정의 : mockUserPoint
+        // 테스트대상메서드 실행시 반환객체정의: userPointRepository.selectById 메서드 호출시 mockUserPoint 반환
+        long givenId = 1L;
+        UserPoint mockUserPoint = new UserPoint(givenId, 1000, System.currentTimeMillis());
+        Mockito.when(userPointRepository.selectById(givenId)).thenReturn(mockUserPoint);
+        // when : 실행
+        UserPoint result = pointService.getPointById(givenId);
+        // then : 검증
+        // 기대결과 검증 : when 에서의 결과로 받은 result 객체가 예상객체(mockUserPoint)랑 일치하는지 검증하기
+        // userPointRepository의 selectById 메서드가 정확히 한 번 호출되었는지 검증합니다.
+        assertEquals(mockUserPoint, result);
+        Mockito.verify(userPointRepository, times(1)).selectById(givenId);
+    }
+
+    @Test
+    @DisplayName("실패테스트-포인트조회실패(존재하지않는 아이디로 포인트 조회)")
+    void testGetPointByInvalidId() {
+        long invalidUserId = 999L;
+        when(userPointRepository.selectById(invalidUserId)).thenReturn(null);
+
+        Exception exception = assertThrows(PointException.class, () -> {
+            pointService.getPointById(invalidUserId);
+        });
+
+        assertEquals("존재하지 않는 사용자 ID입니다.", exception.getMessage());
+    }
+
+
 
     /**
      * TODO - 성공테스트-포인트사용
@@ -208,6 +212,20 @@ class PointServiceMockTest {
         assertEquals(TransactionType.USE, capturedPointHistory.type(), "포인트 이력의 타입이 '사용'이어야 합니다.");
     }
 
+    @Test
+    @DisplayName("실패테스트-포인트사용실패(존재하지않는아이디로포인트사용)")
+    void 존재하지않는아이디로포인트사용() {
+        long invalidUserId = 999L;
+        long amount = 500;
+        when(userPointRepository.selectById(invalidUserId)).thenReturn(null); // 혹은 적절한 예외 처리
+
+        Exception exception = assertThrows(PointException.class, () -> {
+            pointService.usePoint(invalidUserId, amount);
+        });
+
+        assertEquals("존재하지 않는 사용자입니다.", exception.getMessage());
+    }
+
     /**
      * TODO - 실패테스트-포인트사용실패(포인트부족)
      * 사용자는 포인트가 부족하여 사용에 실패합니다
@@ -225,11 +243,38 @@ class PointServiceMockTest {
         UserPoint existingUserPoint = new UserPoint(givenUserId, 1000, System.currentTimeMillis());
         Mockito.when(userPointRepository.selectById(givenUserId)).thenReturn(existingUserPoint);
         // when: 실행
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        Exception exception = assertThrows(PointException.class, () -> {
             pointService.usePoint(givenUserId, givenUseAmount);
         });
         // then: 예외 발생을 검증합니다.
         // 포인트 사용 시 포인트가 부족하여 발생하는 예외의 메시지가 "포인트가 부족합니다."인지 검증합니다.
         assertEquals("포인트가 부족합니다.", exception.getMessage());
+    }
+
+    /**
+     * TODO - 성공테스트-포인트사용내역조회
+     * 사용자는 포인트사용내역을 조회할수있습니다
+     */
+    @Test
+    @DisplayName("성공테스트-포인트사용내역조회-사용자는 포인트사용내역을 조회할수있습니다")
+    void testGetHistoriesByUserId() {
+        // given : 준비
+        // 테스트에 필요한 데이터정의 : givenUserId
+        // 테스트객체정의 : mockHistories
+        // 테스트대상메서드 실행시 반환객체정의: PointHistoryRepository.selectAllByUserId 메서드 호출시 mockHistories 반환
+        long givenUserId = 1L;
+        List<PointHistory> mockHistories = Arrays.asList(
+                new PointHistory(1L, givenUserId, 500, TransactionType.CHARGE, System.currentTimeMillis()),
+                new PointHistory(2L, givenUserId, 300, TransactionType.USE, System.currentTimeMillis())
+        );
+        Mockito.when(pointHistoryRepository.selectAllByUserId(givenUserId)).thenReturn(mockHistories);
+        // when : 실행
+        // 포인트 서비스의 getHistoriesByUserId 메서드를 호출하여, 주어진 사용자 ID에 대한 포인트 사용 내역을 조회합니다.
+        List<PointHistory> result = pointService.getHistoriesByUserId(givenUserId);
+
+        // then: 검증
+        assertEquals(mockHistories.size(), result.size(), "조회된 포인트사용내역 크기가 예상과 일치하는지 확인");
+        assertEquals(mockHistories, result, "조회된 포인트사용내역이 예상과 일치하는지 확인");
+        Mockito.verify(pointHistoryRepository, times(1)).selectAllByUserId(givenUserId);
     }
 }

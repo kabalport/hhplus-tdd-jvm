@@ -49,7 +49,7 @@ public class PointServiceIntegrationTest {
     @Test
     @DisplayName("사용자가 포인트를 사용하면 사용자의 포인트가 감소합니다.")
     void whenUsePoint_thenUserPointDecreases() {
-        long userId = 1L;
+        long userId = 3L;
         long initialAmount = 100L;
         long useAmount = 50L;
 

@@ -1,5 +1,6 @@
 package io.hhplus.tdd.point.service;
 
+import io.hhplus.tdd.exception.PointException;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
@@ -27,7 +28,11 @@ public class PointServiceImpl implements PointService {
     @Override
     public UserPoint getPointById(long id) {
         // 포인트 조회 로직
-        return userPointRepository.selectById(id);
+        UserPoint userPoint = userPointRepository.selectById(id);
+        if (userPoint == null) {
+            throw new PointException("존재하지 않는 사용자 ID입니다.");
+        }
+        return userPoint;
     }
 
     @Override
@@ -41,11 +46,11 @@ public class PointServiceImpl implements PointService {
     public synchronized UserPoint chargePoint(long id, long amount) {
 
         UserPoint currentPoint = userPointRepository.selectById(id);
-//        if(currentPoint.point()>100000){
-//            throw new IllegalStateException("100000포인트이상 넣을수 없습니다");
-//        }
-        if (currentPoint == null) {
-            throw new IllegalStateException("id가 없습니다 : " + id);
+        if(currentPoint.point()>1000000){
+            throw new IllegalStateException("1000000 포인트이상 넣을수 없습니다");
+        }
+        if (amount < 0) {
+            throw new PointException("충전포인트는 음수가 될수 없습니다.");
         }
 
         long updatedPoints = currentPoint.point() + amount;
@@ -63,9 +68,13 @@ public class PointServiceImpl implements PointService {
     @Override
     public UserPoint usePoint(long id, long amount) {
         UserPoint currentPoint = userPointRepository.selectById(id);
-        if (currentPoint.point() < amount) {
-            throw new IllegalArgumentException("포인트가 부족합니다.");
+        if (currentPoint == null) {
+            throw new PointException("존재하지 않는 사용자입니다.");
         }
+        if (currentPoint.point() < amount) {
+            throw new PointException("포인트가 부족합니다.");
+        }
+
         long updatedPoints = currentPoint.point() - amount;
         UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
         userPointRepository.save(updatedUserPoint);
