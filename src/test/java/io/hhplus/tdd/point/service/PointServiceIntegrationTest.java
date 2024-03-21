@@ -14,6 +14,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,22 +70,14 @@ public class PointServiceIntegrationTest {
     }
 
     /**
-     * TODO - 성공테스트-동시성포인트충전
-     * 동시에 여러 요청을 보낼 때 사용자 포인트 증가가 정확하게 반영되는지 테스트한다.
-     * given
-     * 동시에 여러개를 보내서 테스트>멀티스레드를 사용
-     * 스레드수는 100으로 테스트 > threadCount 100
-     * 병렬수행클래스 사용 > ExecutorService
-     * when
-     * 반복문으로 요청 100개 보내기
-     * 모든 요청이 끝날때까지 기다리기 > CountDownLatch 사용
-     * then
-     *모든 요청이 처리된 후의 사용자 포인트를 검증
+     * Todo - 동시성테스트-실패케이스-같은유저아이디가 다수의 포인트충전요청시 충전에 실패합니다.
+     * 실패테스트(포인트충전)-같은유저아이디가_다수의_포인트충전요청시_충전에_실패합니다
+     * @throws InterruptedException
      */
     @Test
-    @DisplayName("성공테스트-동시성포인트충전-다수의_포인트충전요청시_정확한_포인트증가를_검증합니다")
-    void 다수의_포인트충전요청시_정확한_포인트증가를_검증합니다() throws InterruptedException {
-        final long userId = 3L; // 테스트에 사용될 사용자 ID
+    @DisplayName("실패테스트(포인트충전)-같은유저아이디가_다수의_포인트충전요청시_충전에_실패합니다")
+    void 같은유저아이디가_다수의_포인트충전요청시_충전에_실패합니다() throws InterruptedException {
+        final long userId = 99L; // 테스트에 사용될 사용자 ID
         final long chargeAmount = 1L; // 각 요청에 의해 충전될 포인트 양
         final int threadCount = 100; // 동시에 실행될 스레드의 수
 
@@ -109,6 +102,58 @@ public class PointServiceIntegrationTest {
         // 모든 요청이 처리된 후의 사용자 포인트를 검증
         UserPoint finalUserPoint = pointService.getPointById(userId);
         assertEquals(100, finalUserPoint.point(), "포인트가 정확히 증가하지 않았습니다.");
+
+        executorService.shutdown(); // 스레드 풀 종료
+    }
+
+    /**
+     * TODO - 성공테스트-동시성포인트충전
+     * 동시에 여러 요청을 보낼 때 사용자 포인트 증가가 정확하게 반영되는지 테스트한다.
+     * given
+     * 동시에 여러개를 보내서 테스트>멀티스레드를 사용
+     * 스레드수는 100으로 테스트 > threadCount 100
+     * 병렬수행클래스 사용 > ExecutorService
+     * when
+     * 반복문으로 요청 100개 보내기
+     * 모든 요청이 끝날때까지 기다리기 > CountDownLatch 사용
+     * then
+     *모든 요청이 처리된 후의 사용자 포인트를 검증
+     *
+     * 서로 다른 사용자들이 포인트충전요청시
+     */
+    @Test
+    @DisplayName("성공테스트-동시성포인트충전-다수의 사용자에 대한 포인트 충전 요청 시 정확한 포인트 증가를 검증합니다")
+    void 다수의사2용자에대한_포인트충전요청시_정확한_포인트증가를_검증합니다() throws InterruptedException {
+        final long baseUserId = 100L; // 사용자 ID 기준값
+        final long chargeAmount = 1L; // 각 요청에 의해 충전될 포인트 양
+        final int userCount = 100; // 테스트에 사용될 사용자 수
+
+        // 동시성 테스트를 위한 준비: 스레드 풀과 CountDownLatch 생성
+        ExecutorService executorService = Executors.newFixedThreadPool(userCount);
+        CountDownLatch latch = new CountDownLatch(userCount);
+
+        // 각 스레드에서 다른 사용자 ID에 대해 포인트 충전을 요청
+        for (int i = 0; i < userCount; i++) {
+            final long userId = baseUserId + i; // 각 사용자 ID를 증가시키며 할당
+            executorService.execute(() -> {
+                try {
+                    pointService.chargePoint(userId, chargeAmount);
+                } finally {
+                    latch.countDown(); // 작업 완료 시 래치 카운트 감소
+                }
+            });
+        }
+
+        latch.await(); // 모든 스레드의 작업이 완료될 때까지 대기
+
+        // 모든 요청이 처리된 후 각 사용자의 포인트를 검증
+        boolean allPointsCorrect = IntStream.range(0, userCount)
+                .allMatch(i -> {
+                    UserPoint userPoint = pointService.getPointById(baseUserId + i);
+                    return userPoint != null && userPoint.point() == chargeAmount;
+                });
+
+        assertTrue(allPointsCorrect, "모든 사용자의 포인트가 정확히 증가하지 않았습니다.");
 
         executorService.shutdown(); // 스레드 풀 종료
     }
