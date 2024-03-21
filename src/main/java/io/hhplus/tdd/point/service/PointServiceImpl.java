@@ -47,7 +47,26 @@ public class PointServiceImpl implements PointService {
         return pointHistoryRepository.selectAllByUserId(id);
     }
 
+    //synchronized 42초 걸림
 
+    //
+
+
+
+    /**
+     * 동시성 고민중임
+     *
+     사용자별 Lock 관리
+     사용자 ID별로 동시성을 관리하기 위해,
+     현재 충전 중인 사용자 ID를 키로 하는 ConcurrentHashMap(동시에 접근이 가능한 자료구조)에 Lock 객체를 저장하고,
+     해당 사용자에 대한 작업을 수행할 때만 Lock을 거는 방법을 고려할 수 있습니다.
+     이 방식은 특정 사용자에 대한 요청을 순차적으로 처리할 수 있게 하며,
+     다른 사용자의 작업에는 영향을 주지 않습니다.
+     - 락을 사용할때는 데드락을 방지하기 위해 주의해야한다.
+     * @param id
+     * @param amount
+     * @return
+     */
     @Override
     public synchronized UserPoint chargePoint(long id, long amount) {
         try {
