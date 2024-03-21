@@ -54,23 +54,9 @@ public class PointServiceImpl implements PointService {
         return pointHistoryRepository.selectAllByUserId(id);
     }
 
-    //synchronized 42초 걸림
+
     /**
-     * 동시성 고민중임
-     *
-     사용자별 Lock 관리
-     사용자 ID별로 동시성을 관리하기 위해, 현재 충전 중인 사용자 ID를 키로 하는
-     ConcurrentHashMap(동시에 접근이 가능한 자료구조)에 Lock 객체를 저장하고,
-     해당 사용자에 대한 작업을 수행할 때만 Lock을 거는 방법을 고려할 수 있습니다.
-     이 방식은 특정 사용자에 대한 요청을 순차적으로 처리할 수 있게 하며,
-     다른 사용자의 작업에는 영향을 주지 않습니다.
-     - 락을 사용할때는 데드락을 방지하기 위해 주의해야한다.
-
-     처리중일때 같은 유저아이디가 들어왔을경우 어떻게해야되지?
-     그냥 다 막는게 좋을것같기도???
-     대기열 시스템은 어떻게?? 비동기 처리, 메시지 큐
-     일일 포인트 충전한도를 설정해서 과도한 요청제한두기
-
+     * Todo - 동시성 고민중인 충전하기기능
      * @param id
      * @param amount
      * @return
@@ -95,43 +81,43 @@ public class PointServiceImpl implements PointService {
             throw new PointException("현재 처리 중입니다. 잠시 후 다시 시도해주세요.");
         }
         try {
-                // 요청된 사용자 아이디로 사용자 포인트 정보를 조회합니다.
-                UserPoint currentPoint = userPointRepository.selectById(id);
-                // 조회된 사용자 정보가 없는 경우 예외를 발생시킵니다.
-                if (currentPoint == null) {
-                    throw new PointException("아이디가 없습니다.");
-                }
-                // 요청된 충전 포인트가 음수인 경우 예외를 발생시킵니다.
-                if (amount < 0) {
-                    throw new PointException("충전포인트는 음수가 될수 없습니다.");
-                }
-                // 사용자 포인트가 1,000,000을 초과하는 경우 예외를 발생시킵니다.
-                if (currentPoint.point() > 1000000) {
-                    throw new PointException("1000000 포인트이상 넣을수 없습니다");
-                }
+            // 요청된 사용자 아이디로 사용자 포인트 정보를 조회합니다.
+            UserPoint currentPoint = userPointRepository.selectById(id);
+            // 조회된 사용자 정보가 없는 경우 예외를 발생시킵니다.
+            if (currentPoint == null) {
+                throw new PointException("아이디가 없습니다.");
+            }
+            // 요청된 충전 포인트가 음수인 경우 예외를 발생시킵니다.
+            if (amount < 0) {
+                throw new PointException("충전포인트는 음수가 될수 없습니다.");
+            }
+            // 사용자 포인트가 1,000,000을 초과하는 경우 예외를 발생시킵니다.
+            if (currentPoint.point() > 1000000) {
+                throw new PointException("1000000 포인트이상 넣을수 없습니다");
+            }
 
-                // 현재 포인트에 요청된 충전 포인트를 추가합니다.
-                long updatedPoints = currentPoint.point() + amount;
-                // 업데이트된 포인트 정보로 새 UserPoint 객체를 생성합니다.
-                UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
+            // 현재 포인트에 요청된 충전 포인트를 추가합니다.
+            long updatedPoints = currentPoint.point() + amount;
+            // 업데이트된 포인트 정보로 새 UserPoint 객체를 생성합니다.
+            UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
 
-                // 업데이트된 사용자 포인트 정보를 저장합니다.
-                userPointRepository.save(updatedUserPoint);
+            // 업데이트된 사용자 포인트 정보를 저장합니다.
+            userPointRepository.save(updatedUserPoint);
 
-                // 포인트 변경 이력을 저장하기  위한 PointHistory 객체를 생성하고 저장합니다.
-                PointHistory history = new PointHistory(id, currentPoint.id(), amount, TransactionType.CHARGE, System.currentTimeMillis());
-                pointHistoryRepository.save(history);
+            // 포인트 변경 이력을 저장하기  위한 PointHistory 객체를 생성하고 저장합니다.
+            PointHistory history = new PointHistory(id, currentPoint.id(), amount, TransactionType.CHARGE, System.currentTimeMillis());
+            pointHistoryRepository.save(history);
 
-                // 업데이트된 사용자 포인트 정보를 반환합니다.
-                return updatedUserPoint;
-            } catch (PointException ex) {
-                // 포인트 처리 중 발생한 예외를 로그로 기록하고 실패 이벤트를 저장합니다.
-                failedEventRepository.save(new PointFailedEvent(id, id, "CHARGE", amount, ex.getMessage(), System.currentTimeMillis()));
-                logger.error("포인트 충전실패아이디: {}. 실패포인트: {}. 에러: {}", id, amount, ex.getMessage());
-                // 예외를 다시 발생시켜 호출자에게 알립니다.
-                throw ex;
+            // 업데이트된 사용자 포인트 정보를 반환합니다.
+            return updatedUserPoint;
+        } catch (PointException ex) {
+            // 포인트 처리 중 발생한 예외를 로그로 기록하고 실패 이벤트를 저장합니다.
+            failedEventRepository.save(new PointFailedEvent(id, id, "CHARGE", amount, ex.getMessage(), System.currentTimeMillis()));
+            logger.error("포인트 충전실패아이디: {}. 실패포인트: {}. 에러: {}", id, amount, ex.getMessage());
+            // 예외를 다시 발생시켜 호출자에게 알립니다.
+            throw ex;
 
-            } finally {
+        } finally {
             // 락을 성공적으로 획득했다면 락을 해제합니다.
             if (lockAcquired) {
                 lock.unlock();
@@ -141,8 +127,16 @@ public class PointServiceImpl implements PointService {
 
 
     @Override
-    public synchronized UserPoint usePoint(long id, long amount) {
+    public UserPoint usePoint(long id, long amount) {
+        Lock lock = locks.computeIfAbsent(id, k -> new ReentrantLock());
+        boolean lockAcquired = false;
         try {
+            lockAcquired = lock.tryLock();
+            if (!lockAcquired) {
+                // 여기서는 lock을 획득하지 못한 경우 바로 예외를 발생시키지만,
+                // 실제 사용 시에는 사용자에게 적절한 오류 메시지를 반환하거나 다른 처리 방법을 고려할 수 있습니다.
+                throw new PointException("현재 포인트 사용 처리 중입니다. 잠시 후 다시 시도해주세요.");
+            }
             UserPoint currentPoint = userPointRepository.selectById(id);
             if (currentPoint == null) {
                 throw new PointException("존재하지 않는 사용자입니다.");
@@ -159,11 +153,13 @@ public class PointServiceImpl implements PointService {
             pointHistoryRepository.save(history);
             return updatedUserPoint;
         } catch (PointException ex) {
-            failedEventRepository.save(new PointFailedEvent(
-                    id,id, "USE", amount, ex.getMessage(), System.currentTimeMillis()
-            ));
-            logger.error("Failed to use points for user {}. Amount: {}. Error: {}", id, amount, ex.getMessage());
+            failedEventRepository.save(new PointFailedEvent(id, id, "USE", amount, ex.getMessage(), System.currentTimeMillis()));
+            logger.error("포인트 사용실패아이디: {}. 사용실패포인트: {}. 에러: {}", id, amount, ex.getMessage());
             throw ex;
+        } finally {
+            if (lockAcquired) {
+                lock.unlock();
+            }
         }
     }
 }
