@@ -1,13 +1,15 @@
 package io.hhplus.tdd.point.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import io.hhplus.tdd.exception.PointException;
+import io.hhplus.tdd.point.domain.PointFailedEvent;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.repository.FailedEventRepository;
 import io.hhplus.tdd.point.repository.PointHistoryRepository;
 import io.hhplus.tdd.point.repository.UserPointRepository;
-import io.hhplus.tdd.point.repository.UserPointTableRepository;
-import io.hhplus.tdd.point.repository.PointHistoryTableRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,15 +17,19 @@ import java.util.List;
 
 @Service
 public class PointServiceImpl implements PointService {
+    private static final Logger logger = LoggerFactory.getLogger(PointServiceImpl.class);
 
     private final UserPointRepository userPointRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final FailedEventRepository failedEventRepository;
 
     @Autowired
-    public PointServiceImpl(UserPointRepository userPointRepository, PointHistoryRepository pointHistoryRepository) {
+    public PointServiceImpl(UserPointRepository userPointRepository, PointHistoryRepository pointHistoryRepository, FailedEventRepository failedEventRepository) {
         this.userPointRepository = userPointRepository;
         this.pointHistoryRepository = pointHistoryRepository;
+        this.failedEventRepository = failedEventRepository;
     }
+
 
     @Override
     public UserPoint getPointById(long id) {
@@ -44,48 +50,62 @@ public class PointServiceImpl implements PointService {
 
     @Override
     public synchronized UserPoint chargePoint(long id, long amount) {
+        try {
+            UserPoint currentPoint = userPointRepository.selectById(id);
+            if (currentPoint == null) {
+                throw new PointException("아이디가 없습니다.");
+            }
+            if (amount < 0) {
+                throw new PointException("충전포인트는 음수가 될수 없습니다.");
+            }
+            if (currentPoint.point() > 1000000) {
+                throw new PointException("1000000 포인트이상 넣을수 없습니다");
+            }
 
-        UserPoint currentPoint = userPointRepository.selectById(id);
-        if(currentPoint == null){
-            throw new PointException("아이디가 없습니다.");
+
+            long updatedPoints = currentPoint.point() + amount;
+            UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
+
+            userPointRepository.save(updatedUserPoint);
+
+            PointHistory history = new PointHistory(id, currentPoint.id(), amount, TransactionType.CHARGE, System.currentTimeMillis());
+            pointHistoryRepository.save(history);
+
+            return updatedUserPoint;
+        } catch (PointException ex) {
+            failedEventRepository.save(new PointFailedEvent(
+                    id,id, "CHARGE", amount, ex.getMessage(), System.currentTimeMillis()
+            ));
+            logger.error("포인트 충전실패아이디: {}. 실패포인트: {}. 에러: {}", id, amount, ex.getMessage());
+            throw ex;
         }
-        if (amount < 0) {
-            throw new PointException("충전포인트는 음수가 될수 없습니다.");
-        }
-        if(currentPoint.point()>1000000){
-            throw new PointException("1000000 포인트이상 넣을수 없습니다");
-        }
-
-
-        long updatedPoints = currentPoint.point() + amount;
-        UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
-
-        userPointRepository.save(updatedUserPoint);
-
-        PointHistory history = new PointHistory(id,currentPoint.id(), amount, TransactionType.CHARGE, System.currentTimeMillis());
-        pointHistoryRepository.save(history);
-
-        return updatedUserPoint;
     }
 
 
     @Override
-    public UserPoint usePoint(long id, long amount) {
-        UserPoint currentPoint = userPointRepository.selectById(id);
-        if (currentPoint == null) {
-            throw new PointException("존재하지 않는 사용자입니다.");
+    public synchronized UserPoint usePoint(long id, long amount) {
+        try {
+            UserPoint currentPoint = userPointRepository.selectById(id);
+            if (currentPoint == null) {
+                throw new PointException("존재하지 않는 사용자입니다.");
+            }
+            if (currentPoint.point() < amount) {
+                throw new PointException("포인트가 부족합니다.");
+            }
+
+            long updatedPoints = currentPoint.point() - amount;
+            UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
+            userPointRepository.save(updatedUserPoint);
+
+            PointHistory history = new PointHistory(id, currentPoint.id(), -amount, TransactionType.USE, System.currentTimeMillis());
+            pointHistoryRepository.save(history);
+            return updatedUserPoint;
+        } catch (PointException ex) {
+            failedEventRepository.save(new PointFailedEvent(
+                    id,id, "USE", amount, ex.getMessage(), System.currentTimeMillis()
+            ));
+            logger.error("Failed to use points for user {}. Amount: {}. Error: {}", id, amount, ex.getMessage());
+            throw ex;
         }
-        if (currentPoint.point() < amount) {
-            throw new PointException("포인트가 부족합니다.");
-        }
-
-        long updatedPoints = currentPoint.point() - amount;
-        UserPoint updatedUserPoint = new UserPoint(id, updatedPoints, System.currentTimeMillis());
-        userPointRepository.save(updatedUserPoint);
-
-        PointHistory history = new PointHistory(id, currentPoint.id(), -amount, TransactionType.USE, System.currentTimeMillis());
-        pointHistoryRepository.save(history);
-
-        return updatedUserPoint;
     }
 }

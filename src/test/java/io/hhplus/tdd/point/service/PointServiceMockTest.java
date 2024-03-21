@@ -1,9 +1,11 @@
 package io.hhplus.tdd.point.service;
 
 import io.hhplus.tdd.exception.PointException;
+import io.hhplus.tdd.point.domain.PointFailedEvent;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.repository.FailedEventRepository;
 import io.hhplus.tdd.point.repository.PointHistoryRepository;
 import io.hhplus.tdd.point.repository.UserPointRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,8 @@ class PointServiceMockTest {
     private UserPointRepository userPointRepository;
     private PointHistoryRepository pointHistoryRepository;
 
+    private FailedEventRepository failedEventRepository;
+
     /**
      * TODO - 반복되는 Mock 객체 미리 세팅
      * 재사용을 위해 property 들을 초기화해서 Repository 목킹하여 Service 인자로 사용합니다
@@ -34,7 +38,8 @@ class PointServiceMockTest {
     void setUp() {
         userPointRepository = Mockito.mock(UserPointRepository.class);
         pointHistoryRepository = Mockito.mock(PointHistoryRepository.class);
-        pointService = new PointServiceImpl(userPointRepository, pointHistoryRepository);
+        failedEventRepository = Mockito.mock(FailedEventRepository.class); // Mock 객체 추가
+        pointService = new PointServiceImpl(userPointRepository, pointHistoryRepository, failedEventRepository);
     }
 
     /**
@@ -55,6 +60,79 @@ class PointServiceMockTest {
         assertEquals(givenId, emptyUserPoint.id(), "생성된 UserPoint 객체의 ID가 주어진 ID와 일치해야 합니다.");
         assertEquals(0, emptyUserPoint.point(), "생성된 UserPoint 객체의 포인트는 0이어야 합니다.");
     }
+
+    @Test
+    @DisplayName("실패테스트-포인트충전하거나사용할때 에러발생시 실패한데이터를 저장합니다.")
+    void whenErrorOccursOnPointChargeOrUse_thenRecordFailedEventDataAndLog() {
+        // Given
+        long userId = 1L;
+        long chargeAmount = -50L; // 의도적으로 잘못된 값(음수)를 설정하여 에러를 유발
+        when(userPointRepository.selectById(userId)).thenReturn(UserPoint.empty(userId));
+        ArgumentCaptor<PointFailedEvent> failedEventCaptor = ArgumentCaptor.forClass(PointFailedEvent.class);
+
+        // When
+        PointException thrown = assertThrows(PointException.class, () -> {
+            pointService.chargePoint(userId, chargeAmount);
+        });
+
+        // Then
+        // 예외 메시지 검증
+        assertTrue(thrown.getMessage().contains("음수"));
+
+        // FailedEventRepository의 save 메소드가 호출되었는지, 그리고 올바른 인자로 호출되었는지 검증
+        verify(failedEventRepository).save(failedEventCaptor.capture());
+        PointFailedEvent capturedEvent = failedEventCaptor.getValue();
+
+        assertNotNull(capturedEvent);
+        assertEquals(userId, capturedEvent.getUserId());
+        assertEquals("CHARGE", capturedEvent.getOperation());
+        assertEquals(chargeAmount, capturedEvent.getAmount());
+        assertTrue(capturedEvent.getErrorMessage().contains("음수"));
+
+        // 비슷한 방식으로 포인트 사용 시 실패하는 경우도 테스트할 수 있습니다.
+        // 예를 들어, 사용 가능 포인트보다 많은 포인트를 사용하려고 시도할 때 실패 이벤트를 기록하는 로직을 검증할 수 있습니다.
+    }
+
+    @Test
+    @DisplayName("실패테스트-여러 실패 데이터 검증")
+    void whenMultipleErrorsOccur_thenVerifyAllFailedEventsData() {
+        // Given
+        long userId = 1L;
+        // 실패 시나리오 #1: 음수 포인트 충전 시도
+        long negativeChargeAmount = -50L;
+        // 실패 시나리오 #2: 사용 가능 포인트보다 많은 포인트 사용 시도
+        long excessiveUseAmount = 1000L;
+        when(userPointRepository.selectById(userId)).thenReturn(new UserPoint(userId, 300L, System.currentTimeMillis()));
+        ArgumentCaptor<PointFailedEvent> failedEventCaptor = ArgumentCaptor.forClass(PointFailedEvent.class);
+
+        // When
+        assertThrows(PointException.class, () -> pointService.chargePoint(userId, negativeChargeAmount));
+        assertThrows(PointException.class, () -> pointService.usePoint(userId, excessiveUseAmount));
+
+        // Then
+        // FailedEventRepository의 save 메소드가 호출된 횟수 및 호출된 인자들 검증
+        verify(failedEventRepository, times(2)).save(failedEventCaptor.capture());
+        List<PointFailedEvent> capturedEvents = failedEventCaptor.getAllValues();
+
+        assertEquals(2, capturedEvents.size(), "실패 이벤트가 정확히 2개 기록되어야 합니다.");
+
+        // 실패 시나리오 #1에 대한 검증
+        PointFailedEvent chargeFailedEvent = capturedEvents.get(0);
+        System.out.println(chargeFailedEvent.getId());
+        assertEquals(userId, chargeFailedEvent.getUserId());
+        assertEquals("CHARGE", chargeFailedEvent.getOperation());
+        assertEquals(negativeChargeAmount, chargeFailedEvent.getAmount());
+        assertTrue(chargeFailedEvent.getErrorMessage().contains("음수"));
+
+        // 실패 시나리오 #2에 대한 검증
+        PointFailedEvent useFailedEvent = capturedEvents.get(1);
+        System.out.println(useFailedEvent.getId());
+        assertEquals(userId, useFailedEvent.getUserId());
+        assertEquals("USE", useFailedEvent.getOperation());
+        assertEquals(excessiveUseAmount, useFailedEvent.getAmount());
+        assertTrue(useFailedEvent.getErrorMessage().contains("포인트가 부족합니다"));
+    }
+
 
 
     /**
@@ -122,11 +200,14 @@ class PointServiceMockTest {
         Mockito.when(userPointRepository.selectById(givenId)).thenReturn(null);
 
         Exception exception = assertThrows(PointException.class, () -> {
-            pointService.chargePoint(givenId,givenAmount);
+            pointService.chargePoint(givenId, givenAmount);
         });
 
         assertEquals("아이디가 없습니다.", exception.getMessage());
+        // FailedEventRepository의 save 메서드 호출 검증
+        verify(failedEventRepository).save(any(PointFailedEvent.class));
     }
+
 
 
     /**
@@ -149,6 +230,8 @@ class PointServiceMockTest {
         // then: 예외 발생을 검증합니다.
         // 포인트 사용 시 포인트가 부족하여 발생하는 예외의 메시지가 "포인트가 부족합니다."인지 검증합니다.
         assertEquals("충전포인트는 음수가 될수 없습니다.", exception.getMessage());
+        //실패하는 경우에 FailedEventRepository의 save 메소드가 호출되는지를 검증하는 테스트 케이스를 추가
+        verify(failedEventRepository).save(any(PointFailedEvent.class));
     }
 
 
@@ -242,6 +325,8 @@ class PointServiceMockTest {
         });
 
         assertEquals("존재하지 않는 사용자입니다.", exception.getMessage());
+        // FailedEventRepository의 save 메서드 호출 검증
+        verify(failedEventRepository).save(any(PointFailedEvent.class));
     }
 
     /**
