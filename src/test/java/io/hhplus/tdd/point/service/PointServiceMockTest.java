@@ -1,11 +1,7 @@
 package io.hhplus.tdd.point.service;
 
-import io.hhplus.tdd.exception.PointException;
-import io.hhplus.tdd.point.model.PointFailedEvent;
-import io.hhplus.tdd.point.model.PointHistory;
-import io.hhplus.tdd.point.model.TransactionType;
-import io.hhplus.tdd.point.model.UserPoint;
-import io.hhplus.tdd.point.model.PointTestDataBuilder;
+import io.hhplus.tdd.point.exception.PointException;
+import io.hhplus.tdd.point.model.*;
 import io.hhplus.tdd.point.repository.FailedEventRepository;
 import io.hhplus.tdd.point.repository.PointHistoryRepository;
 import io.hhplus.tdd.point.repository.UserPointRepository;
@@ -25,11 +21,9 @@ import static org.mockito.Mockito.*;
  *
  */
 class PointServiceMockTest {
-
     private PointService pointService;
     private UserPointRepository userPointRepository;
     private PointHistoryRepository pointHistoryRepository;
-
     private FailedEventRepository failedEventRepository;
 
     /**
@@ -43,22 +37,23 @@ class PointServiceMockTest {
         failedEventRepository = Mockito.mock(FailedEventRepository.class); // Mock 객체 추가
         pointService = new PointServiceImpl(userPointRepository, pointHistoryRepository, failedEventRepository);
     }
-//    @Test
-//    @DisplayName("포인트충전로직검증_충전포인트가 1점이상인경우")
-//    void 포인트충전로직검증_포인트가_1점이상인경우() {
-//        // Given
-//        long userId = 1L;
-//        long chargeAmount = 100L;
-//        UserPoint existingUserPoint = PointTestDataBuilder.ChargePointUser(userId, 0);
-//        UserPoint expectedUserPointAfterCharge = PointTestDataBuilder.ChargePointUser(userId, chargeAmount);
-//        when(userPointRepository.selectById(userId)).thenReturn(existingUserPoint);
-//        when(userPointRepository.save(any(UserPoint.class))).thenReturn(expectedUserPointAfterCharge);
-//        // When
-//        UserPoint result = pointService.chargePoint(userId, chargeAmount);
-//        // Then
-//        assertNotNull(result, "Resulting UserPoint should not be null");
-//        assertEquals(chargeAmount, result.point(), "UserPoint should be correctly updated after charge");
-//    }
+    @Test
+    @DisplayName("포인트충전로직검증_충전포인트가 1점이상인경우")
+    void 포인트충전로직검증_포인트가_1점이상인경우() {
+        // Given
+        long userId = 1L;
+        long chargeAmount = 100L;
+        UserPoint existingUserPoint = PointTestDataBuilder.ChargePointUser(userId, 0);
+
+        UserPoint expectedUserPointAfterCharge = PointTestDataBuilder.ChargePointUser(userId, chargeAmount);
+        when(userPointRepository.selectById(userId)).thenReturn(existingUserPoint);
+        when(userPointRepository.save(any(UserPoint.class))).thenReturn(expectedUserPointAfterCharge);
+        // When
+        UserPoint result = pointService.chargePoint(userId, chargeAmount);
+        // Then
+        assertNotNull(result, "Resulting UserPoint should not be null");
+        assertEquals(chargeAmount, result.point(), "UserPoint should be correctly updated after charge");
+    }
 
     /**
      * TODO - 성공테스트-최초회원의 포인트는 0으로 설정됩니다.

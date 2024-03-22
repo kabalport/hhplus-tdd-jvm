@@ -1,6 +1,6 @@
 package io.hhplus.tdd.point.service;
 
-import io.hhplus.tdd.exception.PointException;
+import io.hhplus.tdd.point.exception.PointException;
 import io.hhplus.tdd.point.model.PointHistory;
 import io.hhplus.tdd.point.model.TransactionType;
 import io.hhplus.tdd.point.model.UserPoint;

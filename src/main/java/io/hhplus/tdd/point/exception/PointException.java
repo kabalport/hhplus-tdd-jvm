@@ -1,4 +1,4 @@
-package io.hhplus.tdd.exception;
+package io.hhplus.tdd.point.exception;
 
 public class PointException extends RuntimeException {
 

@@ -2,7 +2,7 @@ package io.hhplus.tdd.point.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.hhplus.tdd.exception.PointException;
+import io.hhplus.tdd.point.exception.PointException;
 import io.hhplus.tdd.point.model.PointFailedEvent;
 import io.hhplus.tdd.point.model.PointHistory;
 import io.hhplus.tdd.point.model.TransactionType;
