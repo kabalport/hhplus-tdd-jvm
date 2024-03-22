@@ -43,9 +43,9 @@ class PointServiceMockTest {
         // Given
         long userId = 1L;
         long chargeAmount = 100L;
-        UserPoint existingUserPoint = PointTestDataBuilder.ChargePointUser(userId, 0);
+        UserPoint existingUserPoint = PointFixture.firstUser();
 
-        UserPoint expectedUserPointAfterCharge = PointTestDataBuilder.ChargePointUser(userId, chargeAmount);
+        UserPoint expectedUserPointAfterCharge = PointFixture.passed();
         when(userPointRepository.selectById(userId)).thenReturn(existingUserPoint);
         when(userPointRepository.save(any(UserPoint.class))).thenReturn(expectedUserPointAfterCharge);
         // When
