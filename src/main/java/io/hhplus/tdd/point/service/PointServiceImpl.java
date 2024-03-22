@@ -133,8 +133,6 @@ public class PointServiceImpl implements PointService {
         try {
             lockAcquired = lock.tryLock();
             if (!lockAcquired) {
-                // 여기서는 lock을 획득하지 못한 경우 바로 예외를 발생시키지만,
-                // 실제 사용 시에는 사용자에게 적절한 오류 메시지를 반환하거나 다른 처리 방법을 고려할 수 있습니다.
                 throw new PointException("현재 포인트 사용 처리 중입니다. 잠시 후 다시 시도해주세요.");
             }
             UserPoint currentPoint = userPointRepository.selectById(id);
