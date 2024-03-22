@@ -89,8 +89,6 @@ class PointServiceMockTest {
         assertEquals(chargeAmount, capturedEvent.getAmount());
         assertTrue(capturedEvent.getErrorMessage().contains("음수"));
 
-        // 비슷한 방식으로 포인트 사용 시 실패하는 경우도 테스트할 수 있습니다.
-        // 예를 들어, 사용 가능 포인트보다 많은 포인트를 사용하려고 시도할 때 실패 이벤트를 기록하는 로직을 검증할 수 있습니다.
     }
 
     @Test
