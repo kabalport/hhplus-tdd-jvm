@@ -1,4 +1,4 @@
-package io.hhplus.tdd.point.domain;
+package io.hhplus.tdd.point.model;
 
 public class PointFailedEvent {
     private final long id; // 이벤트 ID

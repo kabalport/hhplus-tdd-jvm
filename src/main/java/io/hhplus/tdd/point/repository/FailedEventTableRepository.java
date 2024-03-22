@@ -1,7 +1,7 @@
 package io.hhplus.tdd.point.repository;
 
 import io.hhplus.tdd.database.PointFailedEventsTable;
-import io.hhplus.tdd.point.domain.PointFailedEvent;
+import io.hhplus.tdd.point.model.PointFailedEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 

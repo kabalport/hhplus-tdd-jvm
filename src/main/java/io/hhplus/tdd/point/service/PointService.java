@@ -1,7 +1,7 @@
 package io.hhplus.tdd.point.service;
 
-import io.hhplus.tdd.point.domain.PointHistory;
-import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.model.PointHistory;
+import io.hhplus.tdd.point.model.UserPoint;
 
 import java.util.List;
 

@@ -1,20 +1,18 @@
 package io.hhplus.tdd.point.service;
 
 import io.hhplus.tdd.exception.PointException;
-import io.hhplus.tdd.point.domain.PointHistory;
-import io.hhplus.tdd.point.domain.TransactionType;
-import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.model.PointHistory;
+import io.hhplus.tdd.point.model.TransactionType;
+import io.hhplus.tdd.point.model.UserPoint;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;

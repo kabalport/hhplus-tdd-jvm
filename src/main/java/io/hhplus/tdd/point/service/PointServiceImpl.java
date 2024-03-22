@@ -3,10 +3,10 @@ package io.hhplus.tdd.point.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.hhplus.tdd.exception.PointException;
-import io.hhplus.tdd.point.domain.PointFailedEvent;
-import io.hhplus.tdd.point.domain.PointHistory;
-import io.hhplus.tdd.point.domain.TransactionType;
-import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.model.PointFailedEvent;
+import io.hhplus.tdd.point.model.PointHistory;
+import io.hhplus.tdd.point.model.TransactionType;
+import io.hhplus.tdd.point.model.UserPoint;
 import io.hhplus.tdd.point.repository.FailedEventRepository;
 import io.hhplus.tdd.point.repository.PointHistoryRepository;
 import io.hhplus.tdd.point.repository.UserPointRepository;
@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 

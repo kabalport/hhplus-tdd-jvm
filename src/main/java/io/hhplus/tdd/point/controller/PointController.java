@@ -1,11 +1,10 @@
 package io.hhplus.tdd.point.controller;
 
-import io.hhplus.tdd.point.domain.PointHistory;
+import io.hhplus.tdd.point.model.PointHistory;
 import io.hhplus.tdd.point.dto.request.ChargePointRequest;
-import io.hhplus.tdd.point.dto.response.PointHistoryResponse;
 import io.hhplus.tdd.point.dto.response.UserPointResponse;
 import io.hhplus.tdd.point.service.PointService;
-import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.model.UserPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

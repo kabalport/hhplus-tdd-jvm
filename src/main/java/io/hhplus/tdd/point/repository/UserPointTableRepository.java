@@ -1,7 +1,7 @@
 package io.hhplus.tdd.point.repository;
 
 import io.hhplus.tdd.database.UserPointTable;
-import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.model.UserPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 

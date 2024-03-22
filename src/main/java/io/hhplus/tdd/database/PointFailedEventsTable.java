@@ -1,6 +1,6 @@
 package io.hhplus.tdd.database;
 
-import io.hhplus.tdd.point.domain.PointFailedEvent;
+import io.hhplus.tdd.point.model.PointFailedEvent;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

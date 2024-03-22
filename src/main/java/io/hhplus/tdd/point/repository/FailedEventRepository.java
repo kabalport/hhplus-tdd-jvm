@@ -1,6 +1,6 @@
 package io.hhplus.tdd.point.repository;
 
-import io.hhplus.tdd.point.domain.PointFailedEvent;
+import io.hhplus.tdd.point.model.PointFailedEvent;
 import java.util.List;
 
 public interface FailedEventRepository {

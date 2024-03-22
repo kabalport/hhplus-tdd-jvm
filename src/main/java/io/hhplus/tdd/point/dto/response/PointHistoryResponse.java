@@ -1,7 +1,7 @@
 package io.hhplus.tdd.point.dto.response;
 
 
-import io.hhplus.tdd.point.domain.TransactionType;
+import io.hhplus.tdd.point.model.TransactionType;
 
 public class PointHistoryResponse {
     private long id;
